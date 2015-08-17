@@ -17,39 +17,50 @@ var io = require('socket.io-client'),
     serverURL = 'http://localhost:' + port;
 
 var Client = function(username) {
-    var self = this;
-
-    var getNewSocketWithUsername = function(username) {
-            var options = {
-                transports: ['websocket'],
-                'force new connection': true
-            };
-
-            if (username) {
-                options.query = 'username=' + username;
-            }
-
-            return new io.connect(serverURL, options);
+    this.getNewSocketWithUsername = function(username) {
+        var options = {
+            transports: ['websocket'],
+            'force new connection': true
         };
 
-    self.username = username || null;
-    self.socket = getNewSocketWithUsername(self.username);
+        if (username) {
+            options.query = 'username=' + username;
+        }
 
-    return self._socket;
+        return new io.connect(serverURL, options);
+    };
+
+    this.username = username || null;
+    this.socket = this.getNewSocketWithUsername(this.username);
+
+    return this;
+};
+
+Client.prototype.setUsername = function(username) {
+    this.username = username;
+
+    if(!this.socket.handshake){
+        this.socket.handshake = {
+            query: {}
+        }
+    }
+
+    this.socket.handshake.query.username = username;
+
 };
 
 //Get profile of current/given user
 Client.prototype.getUserProfile = function(username) {
-    username = username || self.username;
+    username = username || this.username;
 
-    self.socket.emit('getProfile', {
+    this.socket.emit('getProfile', {
         username: username
     });
 };
 
 //Signup
 Client.prototype.signUp = function(username, name) {
-    self.socket.emit('signUp', {
+    this.socket.emit('signUp', {
         username: username,
         displayName: name
     });
@@ -57,73 +68,87 @@ Client.prototype.signUp = function(username, name) {
 
 //Follow a user
 Client.prototype.followUser = function(userToFollow) {
-    self.socket.emit('follow', {
+    this.socket.emit('follow', {
         userToFollow: userToFollow
     });
 };
 
 //Unfollow a user
 Client.prototype.unfollowUser = function(userToUnfollow) {
-    self.socket.emit('unfollow', {
+    this.socket.emit('unfollow', {
         userToUnfollow: userToUnfollow
     });
 };
 
 //Get the timeline of current/given user
 Client.prototype.getTimeLine = function(username) {
-    username = username || self.username;
+    username = username || this.username;
 
-    self.socket.emit('getTimeline', {
-        username
+    this.socket.emit('getTimeline', {
+        username: username
     });
 };
 
 Client.prototype.postNewTweet = function(tweet) {
-    self.socket.emit('createTweet', {
+    this.socket.emit('createTweet', {
         text: tweet
     });
 };
 
-
 //"Responses"
-var responseManager = function(socket) {
+var responseManager = function(client) {
+
+    var socket = client.socket;
+
+    client.socket.client = client;
+
     socket.on('onGetProfile', function(profile) {
+        console.log('onGetProfile sent by ',client.username);
         console.log(profile);
     });
 
     socket.on('onSignUp', function(profile) {
-        console.log(profile);
+        console.log('onSignUp sent by ',profile.username);
+        client.setUsername(profile.username);
+        client.getTimeLine();
     });
 
     socket.on('onGetTimeline', function(timeline) {
-        console.log(timeline);
+        console.log('onGetTimeline sent by ',client.username);
+        console.log('timeline', timeline);
     });
 
     //When you ask for a new user to follow, you will receive the following events:
     //onFollow: ack
     //onFollowTweets: pasts messages of the new followed users
     socket.on('onFollow', function(updatedFollowList) {
+        console.log('onFollow sent by ',client.username);
         console.log(updatedFollowList);
     });
 
     socket.on('onFollowTweets', function(posts) {
+        console.log('onFollowTweets sent by ',client.username);
         console.log(posts);
     });
 
     socket.on('onUnfollow', function(updatedFollowList) {
+        console.log('onUnfollow sent by ',client.username);
         console.log(updatedFollowList);
     });
 
     socket.on('onCreateTweet', function(tweet) {
+        console.log('onCreateTweet sent by ',client.username);
         console.log(tweet);
     });
 
     socket.on('onTimelineUpdated', function(updates) {
+        console.log('onTimelineUpdated sent by ',client.username);
         console.log(updates);
     });
 
     //ERROR Responses
     socket.on('onGetProfileError', function(err) {
+        console.log('onGetProfile sent by ',client.username);
         console.error(err);
     });
 
@@ -153,13 +178,22 @@ var responseManager = function(socket) {
 
     //Standard socket calls
     socket.on('connect', function() {
-        console.log('CONNECTED...');
+        console.log('Connected to server...');
     });
 
     socket.on('error', function(err) {
         console.error(err);
     });
+
+    return this;
 };
 
-var socket1 = new Client('user8');
-responseManager(socket1);
+// var client1 = new Client('user8');
+// var response1 = new responseManager(client1);
+
+var client2 = new Client();
+var response2 = new responseManager(client2);
+
+client2.signUp('user9', 'Pepe');
+
+// client1.getTimeLine();
