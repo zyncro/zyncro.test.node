@@ -44,10 +44,10 @@ Queremos implementar un plataforma similar a *Twitter* en **tiempo real** y muy 
 ##Ejercicio
 
 ###El ejercicio consiste en: 
-* crear una API que, **tiempo real**, permita a los diferentes usuarios conectados, ejecutar las * acciones anteriormente definidas
-* salvar y recuperar la información en/de una base de datos MongoDB
-* definir con MochaJS test unitarios para esas llamadas
-* usar un repositorio en GitHub, Bitbucket, etc... para trabajar en el ejercicio
+* haz un fork de este repositorio y:
+	* crear una API que, **tiempo real**, permita a los diferentes usuarios conectados, ejecutar las * acciones anteriormente definidas
+	* salvar y recuperar la información en/de una base de datos MongoDB
+	* definir con MochaJS test unitarios para esas llamadas
 
 ###Nota
 Con este enunciado se distribuye un pequeño fichero cliente con el que podrás probar el sistema. De ahí podrás extraer las llamadas y parámetros requeridos.
