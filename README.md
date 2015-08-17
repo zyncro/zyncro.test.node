@@ -20,7 +20,7 @@ Queremos implementar un plataforma similar a *Twitter* en **tiempo real** y muy 
 * El texto del post
 * Cuando se creó el post
 
-###Asumiremos que... 
+###Asumiremos que...
 * el usuario es quien dice ser
 * user1 tiene 2 seguidores (user2 y user3)
 * user2 tiene 1 seguidor (user5)
@@ -43,8 +43,8 @@ Queremos implementar un plataforma similar a *Twitter* en **tiempo real** y muy 
 
 ##Ejercicio
 
-###El ejercicio consiste en: 
-* haz un fork de este repositorio y:
+###El ejercicio consiste en:
+* hacer un fork de este repositorio y:
 	* crear una API que, **tiempo real**, permita a los diferentes usuarios conectados, ejecutar las * acciones anteriormente definidas
 	* salvar y recuperar la información en/de una base de datos MongoDB
 	* definir con MochaJS test unitarios para esas llamadas

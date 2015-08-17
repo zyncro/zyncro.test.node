@@ -1,0 +1,12 @@
+{
+  "name": "zyncro.node.exercise",
+  "version": "0.0.1",
+  "description": "Zyncro NodeJS exercise",
+  "dependencies": {
+    "mongoose": "^4.0.7",
+    "socket.io": "^1.3.6",
+    "socketio-auth": "0.0.3"
+  },
+  "devDependencies": {
+  }
+}
