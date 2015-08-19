@@ -30,23 +30,15 @@ var Client = function(username) {
         return new io.connect(serverURL, options);
     };
 
+    this.signUpCallback = null;
     this.username = username || null;
     this.socket = this.getNewSocketWithUsername(this.username);
 
     return this;
 };
 
-Client.prototype.setUsername = function(username) {
-    this.username = username;
-
-    if(!this.socket.handshake){
-        this.socket.handshake = {
-            query: {}
-        }
-    }
-
-    this.socket.handshake.query.username = username;
-
+Client.prototype.getUserList = function() {
+    this.socket.emit('getUserList');
 };
 
 //Get profile of current/given user
@@ -59,7 +51,8 @@ Client.prototype.getUserProfile = function(username) {
 };
 
 //Signup
-Client.prototype.signUp = function(username, name) {
+Client.prototype.signUp = function(username, name, callback) {
+    this.signUpCallback = callback;
     this.socket.emit('signUp', {
         username: username,
         displayName: name
@@ -99,22 +92,21 @@ Client.prototype.postNewTweet = function(tweet) {
 var responseManager = function(client) {
 
     var socket = client.socket;
-
     client.socket.client = client;
 
     socket.on('onGetProfile', function(profile) {
-        console.log('onGetProfile sent by ',client.username);
+        console.log('onGetProfile sent by ', client.username);
         console.log(profile);
     });
 
     socket.on('onSignUp', function(profile) {
-        console.log('onSignUp sent by ',profile.username);
-        client.setUsername(profile.username);
-        client.getTimeLine();
+        if(client.signUpCallback){
+            client.signUpCallback(profile.username);
+        }
     });
 
     socket.on('onGetTimeline', function(timeline) {
-        console.log('onGetTimeline sent by ',client.username);
+        console.log('onGetTimeline sent by ', client.username);
         console.log('timeline', timeline);
     });
 
@@ -122,33 +114,38 @@ var responseManager = function(client) {
     //onFollow: ack
     //onFollowTweets: pasts messages of the new followed users
     socket.on('onFollow', function(updatedFollowList) {
-        console.log('onFollow sent by ',client.username);
+        console.log('onFollow sent by ', client.username);
         console.log(updatedFollowList);
     });
 
+    socket.on('onGetUserList', function(userList){
+        console.log('onGetUserList sent by ', client.username);
+        console.log(userList);
+    });
+
     socket.on('onFollowTweets', function(posts) {
-        console.log('onFollowTweets sent by ',client.username);
+        console.log('onFollowTweets sent by ', client.username);
         console.log(posts);
     });
 
     socket.on('onUnfollow', function(updatedFollowList) {
-        console.log('onUnfollow sent by ',client.username);
+        console.log('onUnfollow sent by ', client.username);
         console.log(updatedFollowList);
     });
 
     socket.on('onCreateTweet', function(tweet) {
-        console.log('onCreateTweet sent by ',client.username);
+        console.log('onCreateTweet sent by ', client.username);
         console.log(tweet);
     });
 
     socket.on('onTimelineUpdated', function(updates) {
-        console.log('onTimelineUpdated sent by ',client.username);
+        console.log('onTimelineUpdated sent by ', client.username);
         console.log(updates);
     });
 
     //ERROR Responses
     socket.on('onGetProfileError', function(err) {
-        console.log('onGetProfile sent by ',client.username);
+        console.log('onGetProfile sent by ', client.username);
         console.error(err);
     });
 
@@ -188,12 +185,43 @@ var responseManager = function(client) {
     return this;
 };
 
-// var client1 = new Client('user8');
-// var response1 = new responseManager(client1);
+//This helper shows you "the flow"
+// var createClient = function(username, newUser, callback) {
+//     username = username || null;
+//
+//     var client = null,
+//         responseBlock = null;
+//
+//     if (username) {
+//         client = new Client(username);
+//         responseBlock = new responseManager(client);
+//
+//         if (client.callback) {
+//             client.callback(client);
+//         } else {
+//             callback(client);
+//         }
+//     } else {
+//         client = new Client();
+//         responseBlock = new responseManager(client);
+//         client.callback = callback;
+//         client.signUp(newUser.username, newUser.name, function(username) {
+//             createClient(username, callback);
+//         });
+//     }
+// };
 
+
+//Example of connecting
+var client1 = new Client('user8');
+var response1 = new responseManager(client1);
+client1.getUserList();
+
+
+//Example of creating a new user
 var client2 = new Client();
 var response2 = new responseManager(client2);
 
-client2.signUp('user9', 'Pepe');
-
-// client1.getTimeLine();
+client2.signUp('user9', 'Pepe', function(username){
+    console.log(username, 'created OK');
+});

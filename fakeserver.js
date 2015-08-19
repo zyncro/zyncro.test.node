@@ -5,6 +5,19 @@ var io = require('socket.io')(3000, {
     pingInterval: 1500
 });
 
+var users = [];
+
+var createUsers = function(numberOfUsers) {
+    for (var i = 1; i <= numberOfUsers; i++) {
+        users.push({
+            username: 'user' + i,
+            displayName: 'Name USER' + i,
+            followers: [],
+            following: []
+        });
+    }
+};
+
 
 io.on('connection', function(socket) {
     var _username = socket.handshake.query.username || null;
@@ -12,12 +25,19 @@ io.on('connection', function(socket) {
     if (_username) {
         socket.username = _username;
 
-        socket.on('getTimeline', function(username){
+        socket.on('getTimeline', function(username) {
             username = username || _username;
 
             console.log('timeline for ' + username);
 
-            socket.emit('onGetTimeline', [{_id: '234234234234234', text: 'fistro duodenar'}]);
+            socket.emit('onGetTimeline', [{
+                _id: '234234234234234',
+                text: 'fistro duodenar'
+            }]);
+        });
+
+        socket.on('getUserList', function(){
+            socket.emit('onGetUserList', users);
         });
 
     } else {
@@ -25,12 +45,16 @@ io.on('connection', function(socket) {
             socket.handshake.query.username = data.username;
             console.log('SignUp for ' + data.username);
 
-            socket.emit('onSignUp', {
+            var newUser = {
                 username: data.username,
                 displayName: data.displayName,
                 followers: [],
                 following: []
-            });
+            };
+
+            users.push(newUser);
+
+            socket.emit('onSignUp', newUser);
         });
     }
 
@@ -40,5 +64,7 @@ io.on('connection', function(socket) {
     });
 
 });
+
+createUsers(7);
 
 console.log('Fakeserver listening on port 3000');
