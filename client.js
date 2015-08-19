@@ -7,16 +7,17 @@
  **         * response: "onFoo"
  **         * error: "onFooError"
  **
- **     except de standard error and connect events
+ **     except the standard error and connect events
  */
 
 'use strict';
 
 var io = require('socket.io-client'),
     port = 3000,
-    serverURL = 'http://localhost:' + port;
+    serverURL = 'http://localhost:' + port,
+    Promise = require('bluebird');
 
-var Client = function(username) {
+var Client = function(username, startupScript) {
     this.getNewSocketWithUsername = function(username) {
         var options = {
             transports: ['websocket'],
@@ -30,9 +31,17 @@ var Client = function(username) {
         return new io.connect(serverURL, options);
     };
 
-    this.signUpCallback = null;
+    this.startupScript = startupScript || null;
     this.username = username || null;
     this.socket = this.getNewSocketWithUsername(this.username);
+
+    this.socket.on('connect', function() {
+        console.log('Connected to server...', this.username);
+
+        if (this.startupScript) {
+            startupScript(this);
+        }
+    });
 
     return this;
 };
@@ -51,11 +60,23 @@ Client.prototype.getUserProfile = function(username) {
 };
 
 //Signup
-Client.prototype.signUp = function(username, name, callback) {
-    this.signUpCallback = callback;
-    this.socket.emit('signUp', {
-        username: username,
-        displayName: name
+Client.prototype.signUp = function(username, name) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+
+        self.socket.emit('signUp', {
+            username: username,
+            displayName: name
+        });
+
+        self.socket.on('onSignUp', function(userProfile) {
+            resolve(userProfile);
+            self.socket.disconnect();
+        });
+
+        self.socket.on('error', function(err) {
+            reject(err);
+        });
     });
 };
 
@@ -99,11 +120,11 @@ var responseManager = function(client) {
         console.log(profile);
     });
 
-    socket.on('onSignUp', function(profile) {
-        if(client.signUpCallback){
-            client.signUpCallback(profile.username);
-        }
-    });
+    // socket.on('onSignUp', function(profile) {
+    //     if (client.signUpCallback) {
+    //         client.signUpCallback(profile.username);
+    //     }
+    // });
 
     socket.on('onGetTimeline', function(timeline) {
         console.log('onGetTimeline sent by ', client.username);
@@ -118,7 +139,7 @@ var responseManager = function(client) {
         console.log(updatedFollowList);
     });
 
-    socket.on('onGetUserList', function(userList){
+    socket.on('onGetUserList', function(userList) {
         console.log('onGetUserList sent by ', client.username);
         console.log(userList);
     });
@@ -185,43 +206,18 @@ var responseManager = function(client) {
     return this;
 };
 
-//This helper shows you "the flow"
-// var createClient = function(username, newUser, callback) {
-//     username = username || null;
-//
-//     var client = null,
-//         responseBlock = null;
-//
-//     if (username) {
-//         client = new Client(username);
-//         responseBlock = new responseManager(client);
-//
-//         if (client.callback) {
-//             client.callback(client);
-//         } else {
-//             callback(client);
-//         }
-//     } else {
-//         client = new Client();
-//         responseBlock = new responseManager(client);
-//         client.callback = callback;
-//         client.signUp(newUser.username, newUser.name, function(username) {
-//             createClient(username, callback);
-//         });
-//     }
-// };
 
-
-//Example of connecting
-var client1 = new Client('user8');
+//Example of login with existing user
+var client1 = new Client('user7');
 var response1 = new responseManager(client1);
 client1.getUserList();
 
 
-//Example of creating a new user
+//Example of creating a new user (it will disconnect after creation)
 var client2 = new Client();
-var response2 = new responseManager(client2);
-
-client2.signUp('user9', 'Pepe', function(username){
-    console.log(username, 'created OK');
-});
+client2.signUp('user9', 'Pepe')
+    .then(function(userProfile) {
+        console.log(userProfile.username, 'created OK. Socket disconnected');
+    }).catch(function(err){
+        console.error(err);
+    });

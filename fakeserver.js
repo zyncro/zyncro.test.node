@@ -21,6 +21,8 @@ var createUsers = function(numberOfUsers) {
 
 io.on('connection', function(socket) {
     var _username = socket.handshake.query.username || null;
+    console.log('user connected with socket ' + socket.id, new Date()
+        .getTime());
 
     if (_username) {
         socket.username = _username;
