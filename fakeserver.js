@@ -38,6 +38,12 @@ io.on('connection', function(socket) {
             }]);
         });
 
+        socket.on('getProfile', function(username) {
+            username = username || _username;
+
+            socket.emit('onGetProfile','on getProfile');
+        });
+
         socket.on('getUserList', function(){
             socket.emit('onGetUserList', users);
         });
