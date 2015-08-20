@@ -1,8 +1,10 @@
-#Ejercicio de NodeJS
-######ver 20150817
+#Ejercicio de NodeJS para Zyncro
+######ver 20150820
+
+###Atención: el objetivo de este ejercicio no es evaluar la rapidez del candidato: preferimos limpieza a velocidad.
 
 ##Enunciado
-Queremos implementar un plataforma similar a *Twitter* en **tiempo real** y muy básica con la siguiente tabla de usuarios pre-existente:
+Queremos implementar un plataforma similar a *Twitter* en [**tiempo real**](http://socket.io/) y muy básica con la siguiente tabla de usuarios pre-existente:
 
 | Username | Display name |
 | -------- | ------------ |
@@ -38,20 +40,31 @@ Queremos implementar un plataforma similar a *Twitter* en **tiempo real** y muy 
 * dejar de seguir a un usuario
 * postear mensajes
 * recibir updates en nuestra timeline en cuanto se creen nuevos post de usuarios a los que sigo
-* recibir mensajes antiguos de un usuario al que acabo de seguir
+* recibir mensajes antiguos de un usuario al que acabo de seguir (por el mismo canal que el de recibir updates)
 * recuperar el perfil de un usuario junto con sus seguidores y seguidos
 * listar los usuarios de nuestro twitter
+
+##¡Importante!
+* Si el cliente hace una petición sin indicar qué usuario es (excepto en el caso del sign up), devolverá el siguiente error:
+```{code: 403, description: 'You must specify a username in your query'}```
+
+* Con este enunciado se distribuye la clase **Client (src/client.js)**: un cliente para conectarse al server. 
+	
+	De sus "métodos" puedes extraer las llamadas a servidor (con sus parámetros) y sus respuestas. **Puedes modificar esta clase con total libertad**. Eso sí, explica el por qué de tus cambios al final de este mismo fichero README (sección Notas del desarrollador).
+* También se distribuye un ejemplo **(example.js)** donde puedes ver la clase Client en movimiento. 
+
 
 ##Ejercicio
 
 ###El ejercicio consiste en:
-* hacer un fork de este repositorio y:
-	* crear una API que, **tiempo real**, permita a los diferentes usuarios conectados, ejecutar las * acciones anteriormente definidas
-	* salvar y recuperar la información en/de una base de datos MongoDB
-	* definir con MochaJS test unitarios para esas llamadas
-	* modificar/completar la lógica el cliente (**client.js**)
+* hacer un fork de este repositorio y...
+	* crear una API que, en [**tiempo real**](http://socket.io/), permita a los diferentes usuarios conectados, ejecutar las  acciones anteriormente definidas
+	* salvar y recuperar la información de los usuarios, tweets, etc... en/de una base de datos MongoDB
+	* modificar/completar el fichero de ejemplo para ver cómo se comporta un flujo de usuarios
+	* modificar/completar la clase Client así como el fichero example.js (los usaremos para probar tu ejercicio).
+	* ** *opcional*: ** definir test unitarios de tu server con [MochaJS](https://mochajs.org/)
 
-###Nota
-Con este enunciado se distribuye un pequeño fichero cliente con el que podrás probar el sistema. De ahí podrás extraer las llamadas y parámetros requeridos.
+####Gracias por dedicar tu tiempo a hacer este ejercicio. Buena suerte
 
-**Gracias por dedicar tu tiempo a hacer este ejercicio. Buena suerte**.
+##Notas del desarrollador
+Pon aquí tus notas, explicaciones, comentarios, etc...
