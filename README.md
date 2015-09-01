@@ -61,6 +61,7 @@ Queremos implementar un plataforma similar a *Twitter* en [**tiempo real**](http
 	* crear una API que, en [**tiempo real**](http://socket.io/), permita a los diferentes usuarios conectados, ejecutar las  acciones anteriormente definidas
 	* modificar/completar el fichero de ejemplo para ver cómo se comporta un flujo de usuarios
 	* modificar/completar la clase Client así como el fichero example.js (los usaremos para probar tu ejercicio).
+
 opcional:
 	* salvar y recuperar la información de los usuarios, tweets, etc... en/de una base de datos MongoDB
 	* *en el caso de que hayas creado una base de datos MongoDB*: entregar un dump de la base de datos que has utilizado (directorio dump)
