@@ -63,6 +63,7 @@ Queremos implementar un plataforma similar a *Twitter* en [**tiempo real**](http
 	* modificar/completar la clase Client así como el fichero example.js (los usaremos para probar tu ejercicio).
 
 opcional:
+
 	* salvar y recuperar la información de los usuarios, tweets, etc... en/de una base de datos MongoDB
 	* *en el caso de que hayas creado una base de datos MongoDB*: entregar un dump de la base de datos que has utilizado (directorio dump)
 	* definir test unitarios de tu server con [MochaJS](https://mochajs.org/)
