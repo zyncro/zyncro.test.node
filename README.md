@@ -48,10 +48,10 @@ Queremos implementar un plataforma similar a *Twitter* en [**tiempo real**](http
 * Si el cliente hace una petición sin indicar qué usuario es (excepto en el caso del sign up), devolverá el siguiente error:
 ```{code: 403, description: 'You must specify a username in your query'}```
 
-* Con este enunciado se distribuye la clase **Client (src/client.js)**: un cliente para conectarse al server. 
-	
+* Con este enunciado se distribuye la clase **Client (src/client.js)**: un cliente para conectarse al server.
+
 	De sus "métodos" puedes extraer las llamadas a servidor (con sus parámetros) y sus respuestas. **Puedes modificar esta clase con total libertad**. Eso sí, explica el por qué de tus cambios al final de este mismo fichero README (sección Notas del desarrollador).
-* También se distribuye un ejemplo **(example.js)** donde puedes ver la clase Client en movimiento. 
+* También se distribuye un ejemplo **(example.js)** donde puedes ver la clase Client en movimiento.
 
 
 ##Ejercicio
@@ -59,11 +59,12 @@ Queremos implementar un plataforma similar a *Twitter* en [**tiempo real**](http
 ###El ejercicio consiste en:
 * hacer un fork de este repositorio y...
 	* crear una API que, en [**tiempo real**](http://socket.io/), permita a los diferentes usuarios conectados, ejecutar las  acciones anteriormente definidas
-	* salvar y recuperar la información de los usuarios, tweets, etc... en/de una base de datos MongoDB
 	* modificar/completar el fichero de ejemplo para ver cómo se comporta un flujo de usuarios
 	* modificar/completar la clase Client así como el fichero example.js (los usaremos para probar tu ejercicio).
-	* entregar un dump de la base de datos que has utilizado (directorio dump)
-	* ** *opcional*: ** definir test unitarios de tu server con [MochaJS](https://mochajs.org/)
+opcional:
+	* salvar y recuperar la información de los usuarios, tweets, etc... en/de una base de datos MongoDB
+	* *en el caso de que hayas creado una base de datos MongoDB*: entregar un dump de la base de datos que has utilizado (directorio dump)
+	* definir test unitarios de tu server con [MochaJS](https://mochajs.org/)
 
 ####Gracias por dedicar tu tiempo a hacer este ejercicio. Buena suerte
 
