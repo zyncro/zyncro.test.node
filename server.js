@@ -39,40 +39,61 @@ server.listen(port, function() {
 
 // Dummy user list
 var userList = [
-		{ username : "User1", display_name : "Pepe" },
-		{ username : "User2", display_name : "Jose" },
-		{ username : "User3", display_name : "Ernesto" },
-		{ username : "User4", display_name : "Andres" },
-		{ username : "User5", display_name : "Ricardo" },
-		{ username : "User6", display_name : "Manuel" },
-		{ username : "User7", display_name : "Fabian" },
-		{ username : "User8", display_name : "Pedro" }
+		{ username : "User1", displayName : "Pepe" },
+		{ username : "User2", displayName : "Jose" },
+		{ username : "User3", displayName : "Ernesto" },
+		{ username : "User4", displayName : "Andres" },
+		{ username : "User5", displayName : "Ricardo" },
+		{ username : "User6", displayName : "Manuel" },
+		{ username : "User7", displayName : "Fabian" },
+		{ username : "User8", displayName : "Pedro" }
 	];
 
+// Dummy timeline - Once we mount the MongoDB we'll change 'username' for a @ref to a user document
+var timeline = [
+	{ datetime: "2015-09-04 00:00:01", username: "User1", message: "Hello this is 'User1's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User2", message: "Hello this is 'User2's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User3", message: "Hello this is 'User3's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User4", message: "Hello this is 'User4's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User5", message: "Hello this is 'User5's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User6", message: "Hello this is 'User6's Tweet..." },
+	{ datetime: "2015-09-04 00:00:01", username: "User7", message: "Hello this is 'User7's Tweet..." }
+];
+
+
+/* Adds listeners that require an 'username' passed by query string.
+**
+**    socket:             socket to wich the event will be binded
+**    username:           client's username
+**    fnCallback:   		the actual callback function to be binded
+**                        
+*/ 
+function addAuthEventListener(socket, event, fnCallback) {
+
+    socket.on(event, function (requestData) {
+
+		console.log("-> Event triggered: '"+ event +"' @ " + socket.id);
+
+        if ( typeof socket.handshake.query.username  === 'undefined' || socket.handshake.query.username === "" ) {
+
+			console.log("---> Authentification failed!");
+			socket.disconnect();
+			return new Error("{ code: 403, description: 'You must specify a username in your query' }");
+
+        } else {
+
+            return fnCallback.apply(this, arguments)
+        }        
+    });
+}
 
 
 
-/*
- * A dummy socket validation function.
- * We look for 'username' inside the connection query and also check if it's null,
- * if it is, then we close the refuse service clossing the connection.
- *
- */
-var validateQuery = function(socket, next) {	
-
-	console.log("> Verifying username...");
-
-	if ( typeof socket.handshake.query.username  === 'undefined' || socket.handshake.query.username === "" ) {
-		console.log("-> Authentification failed!");
-		socket.disconnect();
-		return next(new Error("{ code: 403, description: 'You must specify a username in your query' }"));
-	}
-};
-
-
-
-/*** SOCKET IO Events									*/
-
+/* 
+**
+**   	SOCKET IO EVENTS
+**                        
+*/ 
 io.sockets.on('connection', function(socket) {
 
 	console.log("> New connection stablished: "+ socket.id);
@@ -89,39 +110,69 @@ io.sockets.on('connection', function(socket) {
 	// @ SignUp 			- Creates new users
 	//
 	socket.on('signUp', function( requestData ) {
-		console.log("> Triggered 'signUp' @ " + socket.id);
+
+		// Rough test, will change... don't worry :)
+		if ( {username : requestData.username, displayName : requestData.displayName} in userList ) {
+			return new Error("{ code: 500, description: 'User already exist.' }");
+		}
+
+		console.log("> Event triggered: 'signUp' @ " + socket.id );
 		socket.emit('onSignUp', { username : requestData.username, displayName : requestData.displayName });
 		socket.disconnect();
+
 	});
 
 
 	// @ getUserList 		- Gets a list of all registered users
 	//	
-	socket.on('getUserList', function( requestData ) {
-
-		console.log("> Triggered 'userList' @ " + socket.id);
-		
-		// Validate query
-		validateQuery(socket);
+	addAuthEventListener(socket, 'getUserList', function() {
 
 		// Send the user's list
 		socket.emit( 'onGetUserList', userList );
-
 	});
 
 
-	// @ getUserProfile 	- Gets a user's profile. Will return the requester's profile if none specified
-	//	
-	socket.on('getUserProfile', function( requestData ) {
-		
-		console.log("> Triggered 'getUserProfile' @ " + socket.id);
+	// @ getUserProfile 	- Gets a user's profile  (default is client's)
+	//
+	addAuthEventListener(socket, 'getUserProfile', function( requestData ) {
 
-		// Validate username
-		validateQuery(socket);
-
-		// For now we just send a dummy profile
-		var userProfile = { username : "User1", display_name : "Pepe" };
-		socket.emit('onGetUserProfile', userProfile);
+		// Respond emitting an event (using a dummy profile for now)
+		socket.emit('onGetUserProfile', userList[4]);
 	});
+
+
+	// @ followUser 		- Starts following a user
+	//
+	addAuthEventListener(socket, 'followUser', function( requestData ) {
+
+		// Respond emitting an event
+		socket.emit('onFollowUser', requestData.username);
+	});
+
+
+	// @ unfollowUser 		- Stops following a user
+	//
+	addAuthEventListener(socket, 'unfollowUser', function( requestData ) {
+
+		// Respond emitting an event
+		socket.emit('onUnfollowUser', requestData.username);
+	});	
+
+
+	// @ getTimeline 		- Gets the timeline of a username (default is client's)
+	//
+	addAuthEventListener(socket, 'getTimeline', function( requestData ) {
+
+		// Respond emitting an event
+		socket.emit('onGetTimeline', timeline);
+	});	
+
+	// @ postTweet 			- Posts a new Tweet 
+	//
+	addAuthEventListener(socket, 'postTweet', function( requestData ) {
+
+		// Respond emitting an event
+		socket.emit('onPostTweet', timeline[0]);
+	});	
 
 });
