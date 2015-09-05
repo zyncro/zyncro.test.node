@@ -37,6 +37,13 @@ server.listen(port, function() {
 
 /*** APP LOGIC STARTS HERE 								*/
 
+
+//	WILL CREATE A CLASS AFTER DOING ALL THIS TESTS ;)
+
+
+// An array to collect socket clients (only authentificated ones)
+var socketClients = {};
+
 // Dummy user list
 var userList = [
 		{ username : "User1", displayName : "Pepe" },
@@ -61,11 +68,21 @@ var timeline = [
 ];
 
 
-/* Adds listeners that require an 'username' passed by query string.
+/* 		Authentificates a socket connection by retrieving it's query.username value
 **
-**    socket:             socket to wich the event will be binded
-**    username:           client's username
-**    fnCallback:   		the actual callback function to be binded
+**		socket:             Socket to be authentificated
+**                 
+*/ 
+function authentificate(socket) {
+	return socket.auth = typeof socket.handshake.query.username  === 'undefined' || socket.handshake.query.username === "" ? false:true;	
+}
+
+
+/*		Adds listeners that require an 'username' passed by query string.
+**
+**		socket:             Docket to wich the event will be binded
+**		username:           Client's username
+**		fnCallback:   		The actual callback function to be binded
 **                        
 */ 
 function addAuthEventListener(socket, event, fnCallback) {
@@ -74,16 +91,15 @@ function addAuthEventListener(socket, event, fnCallback) {
 
 		console.log("-> Event triggered: '"+ event +"' @ " + socket.id);
 
-        if ( typeof socket.handshake.query.username  === 'undefined' || socket.handshake.query.username === "" ) {
+		// Is this an authentificated socket?
+        if ( socket.auth ) {
+			return fnCallback.apply(this, arguments);
+		}
 
-			console.log("---> Authentification failed!");
-			socket.disconnect();
-			return new Error("{ code: 403, description: 'You must specify a username in your query' }");
-
-        } else {
-
-            return fnCallback.apply(this, arguments)
-        }        
+		// Disconnect unathorized clients
+		console.log("---> Authentification failed!");
+		socket.disconnect();
+		return new Error("{ code: 403, description: 'You must specify a username in your query' }");  
     });
 }
 
@@ -97,6 +113,22 @@ function addAuthEventListener(socket, event, fnCallback) {
 io.sockets.on('connection', function(socket) {
 
 	console.log("> New connection stablished: "+ socket.id);
+
+
+	/***	STAGE 1 - Process and handle incoming connections	***************/
+
+
+	// Authentificate connection: if TRUE we add the client to the clients array
+	if ( authentificate(socket) ) {
+		socketClients[socket.id] = socket;
+	}
+
+
+
+
+
+
+	/***	STAGE 2 - Start event listeners 	*******************************/
 
 
 	// @ Disconnect
