@@ -69,14 +69,54 @@ var timeline = [
 
 
 /* 		Authentificates a socket connection by retrieving it's query.username value
+**		When a connection is authentificated, we set it up as a new client connection
+**		'username' must also exist
 **
 **		socket:             Socket to be authentificated
 **                 
 */ 
 function authentificate(socket) {
-	return socket.auth = typeof socket.handshake.query.username  === 'undefined' || socket.handshake.query.username === "" ? false:true;	
+	
+	var profile = [];
+
+	// If we got 'username' within the query
+	if ( typeof socket.handshake.query.username  !== 'undefined' || socket.handshake.query.username !== "" ) {
+
+		// If the received 'username' corresponds to an existing profile
+		if ( (profile = userSearch(socket.handshake.query.username)) ) {
+
+			// Setup the socket client
+			socket.auth = true;
+			socket.username = socket.handshake.query.username;
+			socketClients[socket.id] = socket;
+
+		} else {
+
+			console.log("> Requested username '"+ socket.handshake.query.username +"' unexistant.");
+			return new Error({ code: 404, description: "The requested user does not exist."});
+		}
+	}
+
+	// Return AUTH status
+	return socket.auth;
 }
 
+
+/* 		Searches for a user / profile with the given 'username'
+**
+**		username: 			User / Profile name to look for
+**                 			Returns false if not found
+**
+*/ 
+function userSearch(username) {
+	for (var i=0; i<userList.length; i++) {
+		if ( userList[i].username.toLowerCase() == username.toLowerCase() ) {
+			return userList[i];
+		}
+	}
+
+	return false;
+}
 
 /*		Adds listeners that require an 'username' passed by query string.
 **
@@ -119,9 +159,7 @@ io.sockets.on('connection', function(socket) {
 
 
 	// Authentificate connection: if TRUE we add the client to the clients array
-	if ( authentificate(socket) ) {
-		socketClients[socket.id] = socket;
-	}
+	authentificate(socket);
 
 
 
@@ -143,15 +181,31 @@ io.sockets.on('connection', function(socket) {
 	//
 	socket.on('signUp', function( requestData ) {
 
-		// Rough test, will change... don't worry :)
-		if ( {username : requestData.username, displayName : requestData.displayName} in userList ) {
-			return new Error("{ code: 500, description: 'User already exist.' }");
+		console.log("> Event triggered: 'signUp' @ " + socket.id );
+
+		// Only non-signed up user may create new accounts
+		if (socket.auth) {
+			socket.emit('onSignUpError', {code: 403, description:'You already have an account.'});
+			return false;
 		}
 
-		console.log("> Event triggered: 'signUp' @ " + socket.id );
-		socket.emit('onSignUp', { username : requestData.username, displayName : requestData.displayName });
-		socket.disconnect();
+		// Validate de requested new 'username'
+		for (var i=0; i<userList.length; i++) {
 
+			if ( userList[i].username == requestData.username ) {
+				socket.emit('onSignUpError', {code: 409, description:'Username already exist, please choose something else.'});
+				return false;
+			}
+
+		}
+
+		// Add the new user and respond to the client before disconnecting
+		var newUser = { username : requestData.username, displayName : requestData.displayName };
+		userList.push(newUser);
+
+		socket.emit('onSignUp', newUser);
+
+		socket.disconnect();
 	});
 
 
@@ -164,12 +218,17 @@ io.sockets.on('connection', function(socket) {
 	});
 
 
-	// @ getUserProfile 	- Gets a user's profile  (default is client's)
+	// @ getUserProfile 	- Gets a user's profile  (default is current client's username)
 	//
 	addAuthEventListener(socket, 'getUserProfile', function( requestData ) {
 
-		// Respond emitting an event (using a dummy profile for now)
-		socket.emit('onGetUserProfile', userList[4]);
+		var profile = null;
+		if ( !(profile = userSearch(requestData.username || socket.username)) ) {
+			socket.emit('onGetUserProfileError', { code:404, description:'The requested profile was not found'});
+			return false;
+		}
+
+		socket.emit('onGetUserProfile', profile);
 	});
 
 
