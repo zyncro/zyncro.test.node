@@ -10,8 +10,7 @@
 
 'use strict';
 
-
-/*** BASE SETUP: Main objects & Dependencies 			*/
+/*** 	BASE SETUP: Main objects & Dependencies 			*/
 
 var express 			= require('express');
 var app 				= express();
@@ -20,6 +19,7 @@ var server 				= http.createServer(app);
 var io 					= require('socket.io');
 var sockClient 			= require('./class/client');
 var sockClientManager	= require('./class/client-manager');
+
 
 // Set port in which the server will listen
 var port = process.env.PORT || 3000;
@@ -35,47 +35,11 @@ server.listen(port, function() {
 
 
 
-/*** APP LOGIC STARTS HERE 								*/
+/*** 	APP LOGIC STARTS HERE 								*/
 
 
-/*		
-**
-**		Until we implement the MongoDB frame, we'll use this in-memory data
-**
-*/ 
-
-// Dummy user list
-var userList = [
-		{ username : "User1", displayName : "Pepe" },
-		{ username : "User2", displayName : "Jose" },
-		{ username : "User3", displayName : "Ernesto" },
-		{ username : "User4", displayName : "Andres" },
-		{ username : "User5", displayName : "Ricardo" },
-		{ username : "User6", displayName : "Manuel" },
-		{ username : "User7", displayName : "Fabian" },
-		{ username : "User8", displayName : "Pedro" }
-	];
-
-// Dummy timeline
-var timeline = [
-	{ datetime: "2015-09-04 00:00:01", username: "User1", message: "Hello this is 'User1's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User2", message: "Hello this is 'User2's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User3", message: "Hello this is 'User3's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User4", message: "Hello this is 'User4's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User5", message: "Hello this is 'User5's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User6", message: "Hello this is 'User6's Tweet..." },
-	{ datetime: "2015-09-04 00:00:01", username: "User7", message: "Hello this is 'User7's Tweet..." }
-];
-
-
-
-/*		Instantiate the Client Manager object
-**
-**		We pass the in-memory user list right now because we don't have DB connection yet
-**      (After we get a DB we can pass a model / DAO reference here)
-*/ 
-var Manager = new sockClientManager( userList );
-
+// Instantiates our 'Client Manager' object
+var Manager = new sockClientManager();
 
 
 /* 
@@ -87,7 +51,7 @@ io.sockets.on('connection', function( socket ) {
 
 	console.log("> New connection stablished: "+ socket.id);
 
-	// Create a new SocketClient instance
+	// Instantiate a new SocketClient instance
 	var client = new sockClient( socket );
 
 	// Manage the connection

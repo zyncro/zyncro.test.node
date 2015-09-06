@@ -6,11 +6,36 @@
 */ 
 'use string';
 
-function ClientManager( userList ) {
+function ClientManager() {
 
 	var Self			= this;
 	Self.clientList 	= [];
-	Self.userList 		= userList;
+
+
+	/* Until we have a DB Connection setted up, we'll stick to in-memory data */
+
+	// Dummy timeline
+	Self.tweets = [
+		{ datetime: 1441560557686, username: "User1", message: "Hello this is 'User1's Tweet..." },
+		{ datetime: 1441560557676, username: "User2", message: "Hello this is 'User2's Tweet..." },
+		{ datetime: 1441560557666, username: "User3", message: "Hello this is 'User3's Tweet..." },
+		{ datetime: 1441560557656, username: "User4", message: "Hello this is 'User4's Tweet..." },
+		{ datetime: 1441560557646, username: "User5", message: "Hello this is 'User5's Tweet..." },
+		{ datetime: 1441560557636, username: "User6", message: "Hello this is 'User6's Tweet..." },
+		{ datetime: 1441560557626, username: "User7", message: "Hello this is 'User7's Tweet..." }
+	];
+
+	// Dummy user list
+	Self.userList = [
+			{ username : "User1", displayName : "Pepe" },
+			{ username : "User2", displayName : "Jose" },
+			{ username : "User3", displayName : "Ernesto" },
+			{ username : "User4", displayName : "Andres" },
+			{ username : "User5", displayName : "Ricardo" },
+			{ username : "User6", displayName : "Manuel" },
+			{ username : "User7", displayName : "Fabian" },
+			{ username : "User8", displayName : "Pedro" }
+		];
 };
 
 
@@ -147,15 +172,32 @@ ClientManager.prototype.bindEvents = function( client ) {
 	Self.addAuthEventListener(client, 'getTimeline', function( requestData ) {
 
 		// Respond emitting an event
-		client.socket.emit('onGetTimeline', timeline);
+		client.socket.emit('onGetTimeline', Self.tweets);
 	});	
 
-	// @ postTweet 			- Posts a new Tweet 
+	// @ createTweet 			- Posts a new Tweet 
 	//
-	Self.addAuthEventListener(client, 'postTweet', function( requestData ) {
+	Self.addAuthEventListener(client, 'createTweet', function( requestData ) {
+
+		// Validate user input
+		if ( typeof requestData.message === 'undefined' || requestData.message === '' ) {
+			client.socket.emit('onCreateTweetError', { code : 400, description : 'Please specify a message body.'});
+		}
+
+		// Create the new Tweet
+		var tweet = {
+			datetime : Date.now(),
+			username : client.username,
+			message : requestData.message
+		};
+
+		// Simulamos la posibilidad de error
+		if ( !Self.tweets.push( tweet ) ) {
+			client.socket.emit('onCreateTweetError', { code : 500, description : 'Could not append a new Tweet.'});
+		}
 
 		// Respond emitting an event
-		client.socket.emit('onPostTweet', timeline[0]);
+		client.socket.emit('onCreateTweet', tweet );
 	});	
 };
 
