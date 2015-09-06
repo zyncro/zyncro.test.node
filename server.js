@@ -13,19 +13,19 @@
 
 /*** BASE SETUP: Main objects & Dependencies 			*/
 
-var express 	= require('express');
-var app 		= express();
-var http 		= require('http');
-var server 		= http.createServer(app);
-var io 			= require('socket.io');
+var express 			= require('express');
+var app 				= express();
+var http 				= require('http');
+var server 				= http.createServer(app);
+var io 					= require('socket.io');
+var sockClient 			= require('./class/client');
+var sockClientManager	= require('./class/client-manager');
 
 // Set port in which the server will listen
 var port = process.env.PORT || 3000;
 
-
 // I'm doing some tests directly from HTML/JS files, this will be removed later...
 app.use(express.static(__dirname + "/public"));
-
 
 // Start servers (HTTP is temporal and just for personal tests...)
 var io = io.listen(server);
@@ -38,11 +38,9 @@ server.listen(port, function() {
 /*** APP LOGIC STARTS HERE 								*/
 
 
-//	WILL CREATE A CLASS AFTER DOING ALL THIS TESTS ;)
 
 
-// An array to collect socket clients (only authentificated ones)
-var socketClients = {};
+
 
 // Dummy user list
 var userList = [
@@ -68,80 +66,13 @@ var timeline = [
 ];
 
 
-/* 		Authentificates a socket connection by retrieving it's query.username value
-**		When a connection is authentificated, we set it up as a new client connection
-**		'username' must also exist
+
+/*		Instantiate the Client Manager object
 **
-**		socket:             Socket to be authentificated
-**                 
+**		We pass the in-memory user list right now because we don't have DB connection yet
+**      (After we get a DB we can pass a model / DAO reference here)
 */ 
-function authentificate(socket) {
-	
-	var profile = [];
-
-	// If we got 'username' within the query
-	if ( typeof socket.handshake.query.username  !== 'undefined' || socket.handshake.query.username !== "" ) {
-
-		// If the received 'username' corresponds to an existing profile
-		if ( (profile = userSearch(socket.handshake.query.username)) ) {
-
-			// Setup the socket client
-			socket.auth = true;
-			socket.username = socket.handshake.query.username;
-			socketClients[socket.id] = socket;
-
-		} else {
-
-			console.log("> Requested username '"+ socket.handshake.query.username +"' unexistant.");
-			return new Error({ code: 404, description: "The requested user does not exist."});
-		}
-	}
-
-	// Return AUTH status
-	return socket.auth;
-}
-
-
-/* 		Searches for a user / profile with the given 'username'
-**
-**		username: 			User / Profile name to look for
-**                 			Returns false if not found
-**
-*/ 
-function userSearch(username) {
-	for (var i=0; i<userList.length; i++) {
-		if ( userList[i].username.toLowerCase() == username.toLowerCase() ) {
-			return userList[i];
-		}
-	}
-
-	return false;
-}
-
-/*		Adds listeners that require an 'username' passed by query string.
-**
-**		socket:             Docket to wich the event will be binded
-**		username:           Client's username
-**		fnCallback:   		The actual callback function to be binded
-**                        
-*/ 
-function addAuthEventListener(socket, event, fnCallback) {
-
-    socket.on(event, function (requestData) {
-
-		console.log("-> Event triggered: '"+ event +"' @ " + socket.id);
-
-		// Is this an authentificated socket?
-        if ( socket.auth ) {
-			return fnCallback.apply(this, arguments);
-		}
-
-		// Disconnect unathorized clients
-		console.log("---> Authentification failed!");
-		socket.disconnect();
-		return new Error("{ code: 403, description: 'You must specify a username in your query' }");  
-    });
-}
+var Manager = new sockClientManager( userList );
 
 
 
@@ -150,7 +81,7 @@ function addAuthEventListener(socket, event, fnCallback) {
 **   	SOCKET IO EVENTS
 **                        
 */ 
-io.sockets.on('connection', function(socket) {
+io.sockets.on('connection', function( socket ) {
 
 	console.log("> New connection stablished: "+ socket.id);
 
@@ -158,112 +89,12 @@ io.sockets.on('connection', function(socket) {
 	/***	STAGE 1 - Process and handle incoming connections	***************/
 
 
-	// Authentificate connection: if TRUE we add the client to the clients array
-	authentificate(socket);
+	// Create a new SocketClient instance
+	var client = new sockClient( socket );
+
+	// Add (process) the new client
+	Manager.addClient( client );
 
 
-
-
-
-
-	/***	STAGE 2 - Start event listeners 	*******************************/
-
-
-	// @ Disconnect
-	//	
-	socket.on('disconnect', function() {
-		// clients.splice(clients.indexOf(socket.id), 1);
-		console.log("-> Client disconnected.");
-	});	
-
-
-	// @ SignUp 			- Creates new users
-	//
-	socket.on('signUp', function( requestData ) {
-
-		console.log("> Event triggered: 'signUp' @ " + socket.id );
-
-		// Only non-signed up user may create new accounts
-		if (socket.auth) {
-			socket.emit('onSignUpError', {code: 403, description:'You already have an account.'});
-			return false;
-		}
-
-		// Validate de requested new 'username'
-		for (var i=0; i<userList.length; i++) {
-
-			if ( userList[i].username == requestData.username ) {
-				socket.emit('onSignUpError', {code: 409, description:'Username already exist, please choose something else.'});
-				return false;
-			}
-
-		}
-
-		// Add the new user and respond to the client before disconnecting
-		var newUser = { username : requestData.username, displayName : requestData.displayName };
-		userList.push(newUser);
-
-		socket.emit('onSignUp', newUser);
-
-		socket.disconnect();
-	});
-
-
-	// @ getUserList 		- Gets a list of all registered users
-	//	
-	addAuthEventListener(socket, 'getUserList', function() {
-
-		// Send the user's list
-		socket.emit( 'onGetUserList', userList );
-	});
-
-
-	// @ getUserProfile 	- Gets a user's profile  (default is current client's username)
-	//
-	addAuthEventListener(socket, 'getUserProfile', function( requestData ) {
-
-		var profile = null;
-		if ( !(profile = userSearch(requestData.username || socket.username)) ) {
-			socket.emit('onGetUserProfileError', { code:404, description:'The requested profile was not found'});
-			return false;
-		}
-
-		socket.emit('onGetUserProfile', profile);
-	});
-
-
-	// @ followUser 		- Starts following a user
-	//
-	addAuthEventListener(socket, 'followUser', function( requestData ) {
-
-		// Respond emitting an event
-		socket.emit('onFollowUser', requestData.username);
-	});
-
-
-	// @ unfollowUser 		- Stops following a user
-	//
-	addAuthEventListener(socket, 'unfollowUser', function( requestData ) {
-
-		// Respond emitting an event
-		socket.emit('onUnfollowUser', requestData.username);
-	});	
-
-
-	// @ getTimeline 		- Gets the timeline of a username (default is client's)
-	//
-	addAuthEventListener(socket, 'getTimeline', function( requestData ) {
-
-		// Respond emitting an event
-		socket.emit('onGetTimeline', timeline);
-	});	
-
-	// @ postTweet 			- Posts a new Tweet 
-	//
-	addAuthEventListener(socket, 'postTweet', function( requestData ) {
-
-		// Respond emitting an event
-		socket.emit('onPostTweet', timeline[0]);
-	});	
 
 });
