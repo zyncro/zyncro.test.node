@@ -38,9 +38,11 @@ server.listen(port, function() {
 /*** APP LOGIC STARTS HERE 								*/
 
 
-
-
-
+/*		
+**
+**		Until we implement the MongoDB frame, we'll use this in-memory data
+**
+*/ 
 
 // Dummy user list
 var userList = [
@@ -54,7 +56,7 @@ var userList = [
 		{ username : "User8", displayName : "Pedro" }
 	];
 
-// Dummy timeline - Once we mount the MongoDB we'll change 'username' for a @ref to a user document
+// Dummy timeline
 var timeline = [
 	{ datetime: "2015-09-04 00:00:01", username: "User1", message: "Hello this is 'User1's Tweet..." },
 	{ datetime: "2015-09-04 00:00:01", username: "User2", message: "Hello this is 'User2's Tweet..." },
@@ -78,23 +80,17 @@ var Manager = new sockClientManager( userList );
 
 /* 
 **
-**   	SOCKET IO EVENTS
+**   	SOCKET IO - Manages each connection with the Client Manager object
 **                        
 */ 
 io.sockets.on('connection', function( socket ) {
 
 	console.log("> New connection stablished: "+ socket.id);
 
-
-	/***	STAGE 1 - Process and handle incoming connections	***************/
-
-
 	// Create a new SocketClient instance
 	var client = new sockClient( socket );
 
-	// Add (process) the new client
+	// Manage the connection
 	Manager.addClient( client );
-
-
 
 });
