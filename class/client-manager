@@ -1,4 +1,9 @@
-
+/* 		Client Manager Class
+**
+**		Manages client authentification and events
+**
+**
+*/ 
 'use string';
 
 function ClientManager( userList ) {
@@ -27,7 +32,11 @@ ClientManager.prototype.userSearch = function ( username ) {
 	return false;
 };
 
-
+/* 		Will authentificate and add a new client
+**
+**		client:             An instance of 'SocketClient' object
+**                 
+*/ 
 ClientManager.prototype.addClient = function( client ) {
 	var Self = this;
 
@@ -43,7 +52,7 @@ ClientManager.prototype.addClient = function( client ) {
 
 /* 		Bind all the basic events to the given client socket
 **
-**		socket:             Socket to be authentificated
+**		client:             An instance of 'SocketClient' object
 **                 
 */ 
 ClientManager.prototype.bindEvents = function( client ) {
@@ -59,7 +68,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 			Self.clientList.splice( Self.clientList.indexOf(client.socket.id), 1 );
 		}
 	});	
-
 
 	// @ SignUp 			- Creates new users
 	//
@@ -92,7 +100,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		client.socket.disconnect();
 	});
 
-
 	// @ getUserList 		- Gets a list of all registered users
 	//	
 	Self.addAuthEventListener(client, 'getUserList', function() {
@@ -105,7 +112,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		}
 
 	});
-
 
 	// @ getUserProfile 	- Gets a user's profile  (default is current client's username)
 	//
@@ -120,7 +126,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		client.socket.emit('onGetUserProfile', profile);
 	});
 
-
 	// @ followUser 		- Starts following a user
 	//
 	Self.addAuthEventListener(client, 'followUser', function( requestData ) {
@@ -129,7 +134,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		client.socket.emit('onFollowUser', requestData.username);
 	});
 
-
 	// @ unfollowUser 		- Stops following a user
 	//
 	Self.addAuthEventListener(client, 'unfollowUser', function( requestData ) {
@@ -137,7 +141,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		// Respond emitting an event
 		client.socket.emit('onUnfollowUser', requestData.username);
 	});	
-
 
 	// @ getTimeline 		- Gets the timeline of a username (default is client's)
 	//
@@ -154,8 +157,6 @@ ClientManager.prototype.bindEvents = function( client ) {
 		// Respond emitting an event
 		client.socket.emit('onPostTweet', timeline[0]);
 	});	
-
-
 };
 
 
@@ -163,7 +164,7 @@ ClientManager.prototype.bindEvents = function( client ) {
 **		When a connection is authentificated, we set it up as a new client connection
 **		'username' must also exist
 **
-**		socket:             Socket to be authentificated
+**		client:             An instance of 'SocketClient' object
 **                 
 */ 
 ClientManager.prototype.authentificate = function( client ) {
@@ -191,10 +192,9 @@ ClientManager.prototype.authentificate = function( client ) {
 };
 
 
-/*		Adds listeners that require an 'username' passed by query string.
+/*		Adds listeners that require a 'username' passed by query string.
 **
-**		socket:             Socket to wich the event will be binded
-**		username:           Client's username
+**		client:             An instance of 'SocketClient' object
 **		fnCallback:   		The actual callback function to be binded
 **                        
 */ 

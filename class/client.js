@@ -1,7 +1,12 @@
-
+/* 		Socket Client class
+**
+**		Encapsulates a socket connection within a connection client.
+**
+**
+*/ 
 'use string';
 
-function Client( socket ) {
+function SocketClient( socket ) {
 
 	var Self 		= this;
 	Self.socket 	= socket;
@@ -11,10 +16,4 @@ function Client( socket ) {
 
 };
 
-
-
-
-
-
-
-module.exports = Client;
+module.exports = SocketClient;
