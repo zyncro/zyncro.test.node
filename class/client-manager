@@ -27,14 +27,14 @@ function ClientManager() {
 
 	// Dummy user list
 	Self.userList = [
-			{ username : "User1", displayName : "Pepe" },
-			{ username : "User2", displayName : "Jose" },
-			{ username : "User3", displayName : "Ernesto" },
-			{ username : "User4", displayName : "Andres" },
-			{ username : "User5", displayName : "Ricardo" },
-			{ username : "User6", displayName : "Manuel" },
-			{ username : "User7", displayName : "Fabian" },
-			{ username : "User8", displayName : "Pedro" }
+			{ username : "User1", displayName : "Pepe", following : ["User2","User3","User4"], followers : ["User2","User3","User4","User8"] },
+			{ username : "User2", displayName : "Jose", following : ["User1","User3"], followers : ["User1","User3"] },
+			{ username : "User3", displayName : "Ernesto", following : ["User1","User2"], followers : ["User1","User2"] },
+			{ username : "User4", displayName : "Andres", following : [], followers : [] },
+			{ username : "User5", displayName : "Ricardo", following : [], followers : [] },
+			{ username : "User6", displayName : "Manuel", following : [], followers : [] },
+			{ username : "User7", displayName : "Fabian", following : [], followers : [] },
+			{ username : "User8", displayName : "Pedro", following : [], followers : [] }
 		];
 };
 
@@ -67,8 +67,40 @@ ClientManager.prototype.addClient = function( client ) {
 
 	// Authentificate and add to Clients Array
 	if ( Self.authentificate( client )) {
-		Self.clientList[client.socket.id] = client;
+
+		Self.clientList[client.username] = client;
+
+		// Create the client's room
+		client.socket.join( client.username );
+
+		// Get the user profile and save followings and followers in memory
+		var profile = Self.userSearch( client.username );
+		client.followings = profile.following;
+		client.followers = profile.followers;
+
+
+		// Look for online followings and join their rooms to receive updates
+		for (var i in client.followings) {
+
+			if ( Self.clientList[client.followings[i]] ) {
+				client.socket.join( client.followings[i] );
+			}
+
+		}
+
+		// Look for online followers and join them the client's room
+		for (var i in client.followings) {
+
+			if ( typeof Self.clientList[client.followings[i]] !== 'undefined') {
+				console.log("Follower "+ client.followings[i] +" está online!");
+				Self.clientList[client.followings[i]].socket.join( client.username );
+			}
+
+		}
+
+
 	}
+
 
 	// Bind events to the new client
 	 this.bindEvents( client );
@@ -196,8 +228,11 @@ ClientManager.prototype.bindEvents = function( client ) {
 			client.socket.emit('onCreateTweetError', { code : 500, description : 'Could not append a new Tweet.'});
 		}
 
+		// Emitimos un update para todos nuestros followers
+		client.socket.to( client.username ).emit('onTimelineUpdated', tweet);
+
 		// Respond emitting an event
-		client.socket.emit('onCreateTweet', tweet );
+		client.socket.emit('onTimelineUpdated', tweet );
 	});	
 };
 
@@ -225,6 +260,7 @@ ClientManager.prototype.authentificate = function( client ) {
 		} else {
 
 			console.log("> Requested username '"+ client.username +"' unexistant.");
+			client.socket.disconnect();
 			return new Error({ code: 404, description: "The requested user does not exist."});
 		}
 	}
