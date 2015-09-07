@@ -1,8 +1,8 @@
 /* 		Socket Client class
 **
-**		Encapsulates a socket connection within a connection client.
+**		Encapsulates a socket connection within a connection client object
 **
-**
+**		2015 - Eduardo Garcia Rajo
 */ 
 'use string';
 
@@ -13,7 +13,6 @@ function SocketClient( socket ) {
 	Self.query		= socket.handshake.query;	
 	Self.username 	= typeof Self.query.username !== 'undefined' || Self.query.username !== "" ? Self.query.username:null;
 	Self.auth 		= false;
-	Self.room		= Self.username;
 	Self.following	= {};
 	Self.followers	= {};
 

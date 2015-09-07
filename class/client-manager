@@ -2,7 +2,7 @@
 **
 **		Manages client authentification and events
 **
-**
+**		2015 - Eduardo Garcia Rajo
 */ 
 'use string';
 
@@ -68,6 +68,7 @@ ClientManager.prototype.addClient = function( client ) {
 	// Authentificate and add to Clients Array
 	if ( Self.authentificate( client )) {
 
+		// Add the client to the clients array (will overwrite when existant)
 		Self.clientList[client.username] = client;
 
 		// Create the client's room
@@ -78,33 +79,41 @@ ClientManager.prototype.addClient = function( client ) {
 		client.followings = profile.following;
 		client.followers = profile.followers;
 
-
-		// Look for online followings and join their rooms to receive updates
-		for (var i in client.followings) {
-
-			if ( Self.clientList[client.followings[i]] ) {
-				client.socket.join( client.followings[i] );
-			}
-
-		}
-
-		// Look for online followers and join them the client's room
-		for (var i in client.followings) {
-
-			if ( typeof Self.clientList[client.followings[i]] !== 'undefined') {
-				console.log("Follower "+ client.followings[i] +" está online!");
-				Self.clientList[client.followings[i]].socket.join( client.username );
-			}
-
-		}
-
-
+		// Join to our online followings / followers
+		Self.joinFollowRooms( client );
 	}
 
 
 	// Bind events to the new client
 	 this.bindEvents( client );
 };
+
+
+/* 		Bind all the basic events to the given client socket
+**
+**		client:             An instance of 'SocketClient' object
+**                 
+*/ 
+ClientManager.prototype.joinFollowRooms = function( client ) {
+	var Self = this;
+
+	// Look for online followings and join their rooms to receive updates
+	for (var i in client.followings) {
+
+		if ( Self.clientList[client.followings[i]] ) {
+			client.socket.join( client.followings[i] );
+		}
+	}
+
+	// Look for online followers and join them to the client's room
+	for (var i in client.followings) {
+
+		if ( typeof Self.clientList[client.followings[i]] !== 'undefined') {
+			console.log("Follower "+ client.followings[i] +" está online!");
+			Self.clientList[client.followings[i]].socket.join( client.username );
+		}
+	}
+}
 
 
 /* 		Bind all the basic events to the given client socket
@@ -122,7 +131,7 @@ ClientManager.prototype.bindEvents = function( client ) {
 
 		// Si el cliente esta en mi lista the Auth Clients, lo remuevo
 		if ( client.auth ) {
-			Self.clientList.splice( Self.clientList.indexOf(client.socket.id), 1 );
+			delete Self.clientList[client.username];
 		}
 	});	
 
@@ -253,6 +262,9 @@ ClientManager.prototype.authentificate = function( client ) {
 
 		// If the received 'username' corresponds to an existing profile
 		if ( (profile = Self.userSearch( client.username )) ) {
+
+			// The client may input he's username with different case, we make sure that the session has the correct case
+			client.username = profile.username;
 
 			// Set client as authentificated
 			client.auth = true;
