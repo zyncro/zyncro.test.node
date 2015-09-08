@@ -45,6 +45,7 @@ server.listen(port, function() {
 var UserModel 	= require('./models/user');
 var TweetModel	= require('./models/tweet');
 
+
 // Instantiates our 'Client Manager' object
 var Manager = new sockClientManager(UserModel, TweetModel);
 
