@@ -6,58 +6,17 @@
 */ 
 'use string';
 
-function ClientManager() {
+function ClientManager( UserModel, TweetModel ) {
 
 	var Self			= this;
 	Self.clientList 	= [];
+	Self.UserModel 		= UserModel;
+	Self.TweetModel		= TweetModel;
 
-
-	/* Until we have a DB Connection setted up, we'll stick to in-memory data */
-
-	// Dummy timeline
-	Self.tweets = [
-		{ datetime: 1441560557686, username: "User1", message: "Hello this is 'User1's Tweet..." },
-		{ datetime: 1441560557676, username: "User2", message: "Hello this is 'User2's Tweet..." },
-		{ datetime: 1441560557666, username: "User3", message: "Hello this is 'User3's Tweet..." },
-		{ datetime: 1441560557656, username: "User4", message: "Hello this is 'User4's Tweet..." },
-		{ datetime: 1441560557646, username: "User5", message: "Hello this is 'User5's Tweet..." },
-		{ datetime: 1441560557636, username: "User6", message: "Hello this is 'User6's Tweet..." },
-		{ datetime: 1441560557626, username: "User7", message: "Hello this is 'User7's Tweet..." }
-	];
-
-	// Dummy user list
-	Self.userList = [
-			{ username : "User1", displayName : "Pepe", following : ["User2","User3","User4"], followers : ["User2","User3","User4","User8"] },
-			{ username : "User2", displayName : "Jose", following : ["User1","User3"], followers : ["User1","User3"] },
-			{ username : "User3", displayName : "Ernesto", following : ["User1","User2"], followers : ["User1","User2"] },
-			{ username : "User4", displayName : "Andres", following : [], followers : [] },
-			{ username : "User5", displayName : "Ricardo", following : [], followers : [] },
-			{ username : "User6", displayName : "Manuel", following : [], followers : [] },
-			{ username : "User7", displayName : "Fabian", following : [], followers : [] },
-			{ username : "User8", displayName : "Pedro", following : [], followers : [] }
-		];
 };
 
 
-/* 		Searches for a user / profile with the given 'username'
-**
-**		username: 			User Profile name to look for
-**      returns:   			A user profile / False if not found
-**
-*/ 
-ClientManager.prototype.userSearch = function ( username ) {
-	var Self = this;
-
-	for (var i=0; i<Self.userList.length; i++) {
-		if ( Self.userList[i].username.toLowerCase() == username.toLowerCase() ) {
-			return Self.userList[i];
-		}
-	}
-
-	return false;
-};
-
-/* 		Will authentificate and add a new client
+/* 		Will authentificate, setup and add a new client
 **
 **		client:             An instance of 'SocketClient' object
 **                 
@@ -65,27 +24,59 @@ ClientManager.prototype.userSearch = function ( username ) {
 ClientManager.prototype.addClient = function( client ) {
 	var Self = this;
 
-	// Authentificate and add to Clients Array
-	if ( Self.authentificate( client )) {
+	// Authentificate and setup the client object
+	if ( client.username ) {
 
-		// Add the client to the clients array (will overwrite when existant)
-		Self.clientList[client.username] = client;
+		// May do some validation her, for now just move the string to lowercase
+		var username = client.username.toLowerCase();
 
-		// Create the client's room
-		client.socket.join( client.username );
+		// Look for the user in the DB
+	    Self.UserModel.findOne({ username : username })
+	    	.exec(function(err, userProfile) {
+	        
+		    	// If username was not found...
+		        if (err) {
+					client.socket.disconnect();
+					console.log(err.message);
+					return new Error(err);
+		        }
 
-		// Get the user profile and save followings and followers in memory
-		var profile = Self.userSearch( client.username );
-		client.followings = profile.following;
-		client.followers = profile.followers;
+		        if (!userProfile) {
+					console.log("> Requested username '"+ client.username +"' unexistant.");
+					return new Error("Requested username '"+ client.username +"' unexistant.");
+		        }
 
-		// Join to our online followings / followers
-		Self.joinFollowRooms( client );
+		        /** CLIENT SETUP **/
+
+				// Set client as authentificated
+				client.auth = true;
+
+				// Save the user ID in memory
+				client._id = userProfile._id;
+
+				// Set the client's username
+				client.username = userProfile.username;
+
+				// Following / Followers
+				client.followings = userProfile.followings;
+				client.followers = userProfile.followers;	
+
+				// Create the client's room
+				client.socket.join( client.username );
+
+				// Join to our online followings / followers
+				//Self.joinFollowRooms( client );
+
+				// Add the client to the clients array (will overwrite when existant)
+				Self.clientList[client.username] = client;
+				
+				console.log();
+		});
+
 	}
 
-
 	// Bind events to the new client
-	 this.bindEvents( client );
+	this.bindEvents( client );
 };
 
 
@@ -96,6 +87,11 @@ ClientManager.prototype.addClient = function( client ) {
 */ 
 ClientManager.prototype.joinFollowRooms = function( client ) {
 	var Self = this;
+
+	// Check if we received an authorized client
+	if ( !client.auth ) {
+		return false;
+	}
 
 	// Look for online followings and join their rooms to receive updates
 	for (var i in client.followings) {
@@ -140,84 +136,201 @@ ClientManager.prototype.bindEvents = function( client ) {
 	client.socket.on('signUp', function( requestData ) {
 		console.log("> Event triggered: 'signUp' @ " + client.socket.id );
 
-
 		// Only non-signed up users may create new accounts
 		if ( client.auth ) {
 			client.socket.emit('onSignUpError', {code: 403, description:'You already have an account.'});
 			return false;
 		}
 
-		// Validate de requested new 'username'
-		for (var i=0; i<Self.userList.length; i++) {
+		// We can do some validation here, we just make sure the 'username' goes to DB in lowercase
+		var username = requestData.username.toLowerCase();
+		var displayName = requestData.displayName;
 
-			if ( Self.userList[i].username == requestData.username ) {
-				client.socket.emit('onSignUpError', {code: 409, description:'Username already exist, please choose something else.'});
+
+
+		// Check if the username has already been taken
+		Self.UserModel.findOne({ "username" : username }, function(err, existingUser) {
+			if (err) {
+				client.socket.emit('onSignUpError', { code : 500, description : err });
 				return false;
 			}
 
-		}
+			// If the username already exists
+			if ( existingUser != null ) {	
+				client.socket.emit('onSignUpError', { code : 409, description : "Username '"+ username +"' is in use, please choose something else." });
+				return false;
+			}
 
-		// Add the new user and respond to the client before disconnecting
-		var newUser = { username : requestData.username, displayName : requestData.displayName };
-		Self.userList.push(newUser);
+			// Create the new User
+			var user = new Self.UserModel();
+			user.username = username;
+			user.displayName = displayName;
 
-		client.socket.emit('onSignUp', newUser);
+			// Save the nwe User
+			user.save(function(err) {
+				if (err) {
+					client.socket.emit('onSignUpError', { code : 500, description : err.msg });
+					return false;
+				}
 
-		client.socket.disconnect();
+				client.socket.emit('onSignUp', { username : user.username, displayName : user.displayName });
+				client.socket.disconnect();
+			});
+		});
 	});
 
 	// @ getUserList 		- Gets a list of all registered users
 	//	
 	Self.addAuthEventListener(client, 'getUserList', function() {
 
-		// Send the user's list
-		if ( Self.userList.length > 0 ) {
-			client.socket.emit( 'onGetUserList', Self.userList );
-		} else {
-			client.socket.emit( 'onGetUserListError', { code:500, description: "Could not retrieve user list from server." });
-		}
+		// Get all users from DB
+		Self.UserModel.find({}, 'displayName')
+			.exec(function(err, users) {
+				if (err) {
+					client.socket.emit('onGetUserListError', { code : 500, description : "Could not retrieve user list from server." });
+					return false;
+				}
 
+				client.socket.emit('onGetUserList', users);
+			});
 	});
 
 	// @ getUserProfile 	- Gets a user's profile  (default is current client's username)
 	//
 	Self.addAuthEventListener(client, 'getUserProfile', function( requestData ) {
 
-		var profile = null;
-		if ( !(profile = Self.userSearch(requestData.username || client.socket.username)) ) {
-			client.socket.emit('onGetUserProfileError', { code:404, description:'The requested profile was not found'});
-			return false;
-		}
+		// If no username is given (for any reason) we'll look for (default) the client's profile
+		var username = requestData.username != "" ? requestData.username.toLowerCase():client.username;
 
-		client.socket.emit('onGetUserProfile', profile);
+		// Get the specified user 
+        Self.UserModel.findOne({ 'username' : username }).populate('tweets').exec(function(err, user) {
+            if (err || user == null) {
+				client.socket.emit('onGetUserProfileError', { code : 404 , description : "The requested profile '"+ username +"' was not found" });
+				return false;
+            }
+
+           	client.socket.emit('onGetUserProfile', user);
+        });
+
 	});
 
 	// @ followUser 		- Starts following a user
 	//
 	Self.addAuthEventListener(client, 'followUser', function( requestData ) {
 
-		if ( requestData.username in client.followings ) {
-			client.socket.emit('onFollowUserError', { code : 403, description : "You are already following "+ requestData.username +"."});
-			return false;
-		}
+		var username = requestData.username.toLowerCase();
 
-		// Respond emitting an event
-		client.socket.emit('onFollowUser', { username : requestData.username });
+        // Users cant follow themseves
+        if (client.username === username) {
+			client.socket.emit('onFollowUserError', { code : 403, description : "You cannot follow yoursef."});
+			return false;
+        }
+
+        // Check if the client is already following this user
+       	if ( client.followings.indexOf(username) > -1 ) {
+			client.socket.emit('onFollowUserError', { code : 403, description : "You are already following '"+ requestData.username +"'."});
+			return false;
+       	}
+
+
+		// Get the specified user from DB (we make sure it is a real user)
+        Self.UserModel.findOne({ 'username' : username }, function(err, userToFollow) {
+
+            if (err || userToFollow == null) {
+				client.socket.emit('onFollowUserError', { code : 404 , description : "The requested profile '"+ username +"' was not found" });
+				return false;
+            }
+
+			// Get for the CLIENT user on DB
+	        Self.UserModel.findById(client._id, function(err, clientUser) {
+
+	            if (err || userToFollow == null) {
+					client.socket.emit('onFollowUserError', { code : 404 , description : err.message });
+					return new Error(err);
+	            }
+
+	            // Update both DB Model and in-memory copy
+	            clientUser.followings.push(userToFollow.username);
+	            client.followings.push(userToFollow.username);
+
+	            // Save client's user with new Following
+	            clientUser.save(function(err) {
+	            	if (err) {
+						client.socket.emit('onFollowUserError', { code : 404 , description : err.message });
+						return new Error(err);
+	            	}
+
+	            	// Update the new followed user's followers: because now $client is his new follower
+	            	userToFollow.followers.push(client.username);
+	            	userToFollow.save();
+
+					// Respond emitting an event
+					client.socket.emit('onFollowUser', userToFollow.username);
+	            });
+			});
+        });
 	});
 
 	// @ unfollowUser 		- Stops following a user
 	//
 	Self.addAuthEventListener(client, 'unfollowUser', function( requestData ) {
-		if ( !requestData.username in client.followings ) {
-			client.socket.emit('onFollowUserError', { code : 403, description : "You are not following "+ requestData.username +"."});
-		}
-		// Respond emitting an event
-		client.socket.emit('onUnfollowUser', requestData.username);
-	});	
+
+		var username = requestData.username.toLowerCase();
+
+        // Users cant follow themseves
+        if (client.username === username) {
+			client.socket.emit('onUnfollowUserError', { code : 403, description : "You cannot follow yoursef."});
+			return false;
+        }
+
+        // Users can't unfollow someone who are NOT following
+       	if (client.followings.indexOf(username) < 0) {
+			client.socket.emit('onUnfollowUserError', { code : 403, description : "You are not following '"+ requestData.username +"'."});
+			return false;
+       	}
+
+		// Get the specified user from DB (we make sure it is a real user)
+        Self.UserModel.findOne({ 'username' : username }, function(err, userToUnfollow) {
+            if (err || userToUnfollow == null) {
+				client.socket.emit('onUnfollowUserError', { code : 404 , description : "The requested profile '"+ username +"' was not found" });
+				return false;
+            }
+
+			// Get for the CLIENT user on DB
+	        Self.UserModel.findById(client._id, function(err, clientUser) {
+
+	            if (err || userToUnfollow == null) {
+					client.socket.emit('onUnfollowUserError', { code : 404 , description : err.message });
+					return new Error(err);
+	            }
+
+	            // Update both DB Model and in-memory copy
+	            clientUser.followings.splice(clientUser.followings.indexOf(userToUnfollow.username));
+	            client.followings.splice(client.followings.indexOf(userToUnfollow.username));
+
+	            // Save client's user with new Following
+	            clientUser.save(function(err) {
+	            	if (err) {
+						client.socket.emit('onUnfollowUserError', { code : 404 , description : err.message });
+						return new Error(err);
+	            	}
+
+	            	// Update the unfollowed user's followers list - as $client is not following him anymore
+	            	userToUnfollow.followers.splice( userToUnfollow.followers.indexOf(clientUser.username) );
+	            	userToUnfollow.save();
+
+					// Respond emitting an event
+					client.socket.emit('onUnfollowUser', userToUnfollow.username);
+	            });
+			});
+        });
+	});
+
 
 	// @ getTimeline 		- Gets the timeline of a username (default is client's)
 	//
 	Self.addAuthEventListener(client, 'getTimeline', function( requestData ) {
+
 
 		// Respond emitting an event
 		client.socket.emit('onGetTimeline', Self.tweets);
@@ -229,63 +342,29 @@ ClientManager.prototype.bindEvents = function( client ) {
 
 		// Validate user input
 		if ( typeof requestData.message === 'undefined' || requestData.message === '' ) {
-			client.socket.emit('onCreateTweetError', { code : 400, description : 'Please specify a message body.'});
+			client.socket.emit('onCreateTweetError', { code : 400, description : 'Please enter a message post.'});
 		}
 
-		// Create the new Tweet
-		var tweet = {
-			datetime : Date.now(),
-			username : client.username,
-			message : requestData.message
-		};
+		// Add the new Tweet message
+		var newTweet = new Self.TweetModel();
+		newTweet._creator = client._id;
+		newTweet.datetime = Date.now();		
+		newTweet.text = requestData.message;
 
-		// Simulamos la posibilidad de error
-		if ( !Self.tweets.push( tweet ) ) {
-			client.socket.emit('onCreateTweetError', { code : 500, description : 'Could not append a new Tweet.'});
-		}
+		newTweet.save(function(err, tweet) {
+			if (err) {
+				client.socket.emit('onCreateTweetError', { code : 500, description : 'Could not create new Tweet.'});
+				return false;
+			}
 
-		// Emitimos un update para todos nuestros followers
-		client.socket.to( client.username ).emit('onTimelineUpdated', tweet);
+			// Respond emitting an event
+			client.socket.emit('onCreateTweet', tweet );
 
-		// Respond emitting an event
-		client.socket.emit('onCreateTweet', tweet );
+			// Emitimos un update para todos nuestros followers
+			client.socket.to( client.username ).emit('onTimelineUpdated', tweet);			
+		});
+
 	});	
-};
-
-
-/* 		Authentificates a socket connection by retrieving it's query.username value
-**		When a connection is authentificated, we set it up as a new client connection
-**		'username' must also exist
-**
-**		client:             An instance of 'SocketClient' object
-**                 
-*/ 
-ClientManager.prototype.authentificate = function( client ) {
-	var Self = this;
-	var profile = [];
-
-	// If we got 'username' within the query
-	if ( client.username ) {
-
-		// If the received 'username' corresponds to an existing profile
-		if ( (profile = Self.userSearch( client.username )) ) {
-
-			// The client may input he's username with different case, we make sure that the session has the correct case
-			client.username = profile.username;
-
-			// Set client as authentificated
-			client.auth = true;
-
-		} else {
-
-			console.log("> Requested username '"+ client.username +"' unexistant.");
-			client.socket.disconnect();
-			return new Error({ code: 404, description: "The requested user does not exist."});
-		}
-	}
-
-	// Return AUTH status
-	return client.auth;
 };
 
 

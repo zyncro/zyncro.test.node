@@ -16,6 +16,7 @@ var express 			= require('express');
 var app 				= express();
 var http 				= require('http');
 var server 				= http.createServer(app);
+var mongoose 			= require('mongoose');
 var io 					= require('socket.io');
 var sockClient 			= require('./class/client');
 var sockClientManager	= require('./class/client-manager');
@@ -23,6 +24,9 @@ var sockClientManager	= require('./class/client-manager');
 
 // Set port in which the server will listen
 var port = process.env.PORT || 3000;
+
+// Connect to MongoDB server
+mongoose.connect('mongodb://localhost/zyncro');
 
 // I'm doing some tests directly from HTML/JS files, this will be removed later...
 app.use(express.static(__dirname + "/public"));
@@ -38,8 +42,11 @@ server.listen(port, function() {
 /*** 	APP LOGIC STARTS HERE 								*/
 
 
+var UserModel 	= require('./models/user');
+var TweetModel	= require('./models/tweet');
+
 // Instantiates our 'Client Manager' object
-var Manager = new sockClientManager();
+var Manager = new sockClientManager(UserModel, TweetModel);
 
 
 /* 
