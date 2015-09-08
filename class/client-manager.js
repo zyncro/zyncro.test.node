@@ -196,14 +196,21 @@ ClientManager.prototype.bindEvents = function( client ) {
 	//
 	Self.addAuthEventListener(client, 'followUser', function( requestData ) {
 
+		if ( requestData.username in client.followings ) {
+			client.socket.emit('onFollowUserError', { code : 403, description : "You are already following "+ requestData.username +"."});
+			return false;
+		}
+
 		// Respond emitting an event
-		client.socket.emit('onFollowUser', requestData.username);
+		client.socket.emit('onFollowUser', { username : requestData.username });
 	});
 
 	// @ unfollowUser 		- Stops following a user
 	//
 	Self.addAuthEventListener(client, 'unfollowUser', function( requestData ) {
-
+		if ( !requestData.username in client.followings ) {
+			client.socket.emit('onFollowUserError', { code : 403, description : "You are not following "+ requestData.username +"."});
+		}
 		// Respond emitting an event
 		client.socket.emit('onUnfollowUser', requestData.username);
 	});	
@@ -241,7 +248,7 @@ ClientManager.prototype.bindEvents = function( client ) {
 		client.socket.to( client.username ).emit('onTimelineUpdated', tweet);
 
 		// Respond emitting an event
-		client.socket.emit('onTimelineUpdated', tweet );
+		client.socket.emit('onCreateTweet', tweet );
 	});	
 };
 
