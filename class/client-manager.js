@@ -12,7 +12,6 @@ function ClientManager( UserModel, TweetModel ) {
 	Self.clientList 	= [];
 	Self.UserModel 		= UserModel;
 	Self.TweetModel		= TweetModel;
-
 };
 
 
@@ -65,7 +64,7 @@ ClientManager.prototype.addClient = function( client ) {
 				client.socket.join( client.username );
 
 				// Join to our online followings / followers
-				//Self.joinFollowRooms( client );
+				Self.joinFollowRooms( client );
 
 				// Add the client to the clients array (will overwrite when existant)
 				Self.clientList[client.username] = client;
@@ -93,22 +92,47 @@ ClientManager.prototype.joinFollowRooms = function( client ) {
 		return false;
 	}
 
-	// Look for online followings and join their rooms to receive updates
+	// Look for online followings and join their rooms to receive updates as push notifications
 	for (var i in client.followings) {
 
 		if ( Self.clientList[client.followings[i]] ) {
 			client.socket.join( client.followings[i] );
+			console.log("Following "+ client.followings[i] +" está online!");
 		}
 	}
 
 	// Look for online followers and join them to the client's room
-	for (var i in client.followings) {
+	for (var i in client.followers) {
 
-		if ( typeof Self.clientList[client.followings[i]] !== 'undefined') {
+		if ( typeof Self.clientList[client.followers[i]] !== 'undefined') {
+			Self.clientList[client.followers[i]].socket.join( client.username );
 			console.log("Follower "+ client.followings[i] +" está online!");
-			Self.clientList[client.followings[i]].socket.join( client.username );
 		}
 	}
+}
+
+
+/*		Adds listeners that require a 'username' passed by query string.
+**
+**		client:             An instance of 'SocketClient' object
+**		fnCallback:   		The actual callback function to be binded
+**                        
+*/ 
+ClientManager.prototype.addAuthEventListener = function( client, event, fnCallback ) {
+
+    client.socket.on(event, function( requestData ) {
+		console.log("-> Event triggered: '"+ event +"' @ " + client.socket.id);
+
+		// Is this an authentificated socket?
+        if ( client.auth ) {
+			return fnCallback.apply(this, arguments);
+		}
+
+		// Disconnect unathorized clients
+		console.log("---> Authentification failed!");
+		client.socket.disconnect();
+		return new Error("{ code: 403, description: 'You must specify a username in your query' }");  
+    });
 }
 
 
@@ -331,9 +355,34 @@ ClientManager.prototype.bindEvents = function( client ) {
 	//
 	Self.addAuthEventListener(client, 'getTimeline', function( requestData ) {
 
+		/*
+			Search for all related tweets, this may be:
+				- User's own tweets
+				- Tweets from users that he is following
+				- Order the combined array by date
+		*/
+		Self.UserModel.findOne({username : client.username })
+			.exec(function(err, user) {
+			
+				// Fetch all users using the "followings" array
+				Self.UserModel.find({username : {"$in" : user.followings }})
+					.select({ _id : 1 })
+					.exec(function(err, users) {
 
-		// Respond emitting an event
-		client.socket.emit('onGetTimeline', Self.tweets);
+						// Add client's ID to the users array
+						users.push({ _id : user._id });
+
+						// Fetch all Tweets using 'users' array, knowing that '_creator' = 'User._id'
+						Self.TweetModel.find({_creator : {"$in" : users }})
+							.sort('-datetime')
+							.exec(function(err, tweets) {
+
+								// Respond emitting an event
+								client.socket.emit('onGetTimeline', tweets);
+						});
+				});
+
+		});
 	});	
 
 	// @ createTweet 			- Posts a new Tweet 
@@ -366,29 +415,5 @@ ClientManager.prototype.bindEvents = function( client ) {
 
 	});	
 };
-
-
-/*		Adds listeners that require a 'username' passed by query string.
-**
-**		client:             An instance of 'SocketClient' object
-**		fnCallback:   		The actual callback function to be binded
-**                        
-*/ 
-ClientManager.prototype.addAuthEventListener = function( client, event, fnCallback ) {
-
-    client.socket.on(event, function( requestData ) {
-		console.log("-> Event triggered: '"+ event +"' @ " + client.socket.id);
-
-		// Is this an authentificated socket?
-        if ( client.auth ) {
-			return fnCallback.apply(this, arguments);
-		}
-
-		// Disconnect unathorized clients
-		console.log("---> Authentification failed!");
-		client.socket.disconnect();
-		return new Error("{ code: 403, description: 'You must specify a username in your query' }");  
-    });
-}
 
 module.exports = ClientManager;
