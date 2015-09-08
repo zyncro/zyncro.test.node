@@ -95,18 +95,18 @@ ClientManager.prototype.joinFollowRooms = function( client ) {
 	// Look for online followings and join their rooms to receive updates as push notifications
 	for (var i in client.followings) {
 
-		if ( Self.clientList[client.followings[i]] ) {
+		if ( typeof Self.clientList[client.followings[i]] !== 'undefined' ) {
 			client.socket.join( client.followings[i] );
-			console.log("Following "+ client.followings[i] +" está online!");
+			//console.log("Following "+ client.followings[i] +" está online!");
 		}
 	}
 
 	// Look for online followers and join them to the client's room
 	for (var i in client.followers) {
 
-		if ( typeof Self.clientList[client.followers[i]] !== 'undefined') {
+		if ( typeof Self.clientList[client.followers[i]] !== 'undefined' ) {
 			Self.clientList[client.followers[i]].socket.join( client.username );
-			console.log("Follower "+ client.followings[i] +" está online!");
+			//console.log("Follower "+ client.followings[i] +" está online!");
 		}
 	}
 }
@@ -227,15 +227,17 @@ ClientManager.prototype.bindEvents = function( client ) {
 		var username = requestData.username != "" ? requestData.username.toLowerCase():client.username;
 
 		// Get the specified user 
-        Self.UserModel.findOne({ 'username' : username }).populate('tweets').exec(function(err, user) {
-            if (err || user == null) {
-				client.socket.emit('onGetUserProfileError', { code : 404 , description : "The requested profile '"+ username +"' was not found" });
-				return false;
-            }
+        Self.UserModel
+        	.findOne({ 'username' : username })
+        	.populate('tweets')
+        	.exec(function(err, userProfile) {
+	            if (err || userProfile == null) {
+					client.socket.emit('onGetUserProfileError', { code : 404 , description : "The requested profile '"+ username +"' was not found" });
+					return new Error(err);
+	            }
 
-           	client.socket.emit('onGetUserProfile', user);
-        });
-
+	           	client.socket.emit('onGetUserProfile', userProfile);
+	        });
 	});
 
 	// @ followUser 		- Starts following a user
@@ -276,6 +278,11 @@ ClientManager.prototype.bindEvents = function( client ) {
 	            // Update both DB Model and in-memory copy
 	            clientUser.followings.push(userToFollow.username);
 	            client.followings.push(userToFollow.username);
+
+	            // We may join the new following user's room if he is online (to receive pushes)
+	            if ( typeof Self.clientList[userToFollow.username] !== 'undefined' ) {
+	            	client.socket.join(userToFollow.username);
+	            }
 
 	            // Save client's user with new Following
 	            clientUser.save(function(err) {
@@ -331,6 +338,11 @@ ClientManager.prototype.bindEvents = function( client ) {
 	            // Update both DB Model and in-memory copy
 	            clientUser.followings.splice(clientUser.followings.indexOf(userToUnfollow.username));
 	            client.followings.splice(client.followings.indexOf(userToUnfollow.username));
+
+	            // We may leave the unfollowe user's room if he is online (to stop receiving pushes)
+	            if ( typeof Self.clientList[userToUnfollow.username] !== 'undefined' ) {
+	            	client.socket.leave(userToUnfollow.username);
+	            }
 
 	            // Save client's user with new Following
 	            clientUser.save(function(err) {
@@ -394,23 +406,37 @@ ClientManager.prototype.bindEvents = function( client ) {
 			client.socket.emit('onCreateTweetError', { code : 400, description : 'Please enter a message post.'});
 		}
 
-		// Add the new Tweet message
-		var newTweet = new Self.TweetModel();
-		newTweet._creator = client._id;
-		newTweet.datetime = Date.now();		
-		newTweet.text = requestData.message;
+		// Look for the client's user as the Parent Object which will hold 'Tweets'
+		Self.UserModel.findById(client._id, function(err, clientUser) {
+			
+			// Create the child object 'Tweet'
+			var newTweet = new Self.TweetModel();
+			newTweet._creator = clientUser._id;
+			newTweet.datetime = Date.now();		
+			newTweet.text = requestData.message;
+			newTweet.save();
 
-		newTweet.save(function(err, tweet) {
-			if (err) {
-				client.socket.emit('onCreateTweetError', { code : 500, description : 'Could not create new Tweet.'});
-				return false;
-			}
 
-			// Respond emitting an event
-			client.socket.emit('onCreateTweet', tweet );
+			clientUser.tweets.push(newTweet);
 
-			// Emitimos un update para todos nuestros followers
-			client.socket.to( client.username ).emit('onTimelineUpdated', tweet);			
+
+			clientUser.save(function(err, user) {
+
+				if (err) {
+					client.socket.emit('onCreateTweetError', { code : 500, description : err });
+					return new Error(err);
+				}
+
+
+
+
+
+				// Respond emitting an event
+				client.socket.emit('onCreateTweet', newTweet );
+
+				// Emitimos un update para todos nuestros followers
+				client.socket.to( client.username ).emit('onTimelineUpdated', newTweet);	
+			});
 		});
 
 	});	

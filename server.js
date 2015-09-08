@@ -42,6 +42,7 @@ server.listen(port, function() {
 /*** 	APP LOGIC STARTS HERE 								*/
 
 
+// Load Mongoose models 
 var UserModel 	= require('./models/user');
 var TweetModel	= require('./models/tweet');
 
