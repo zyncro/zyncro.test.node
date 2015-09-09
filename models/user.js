@@ -192,4 +192,126 @@ UserSchema.statics.followUser = function( data ) {
 };
 
 
+/* 	Creates a new Tweet from the requested user's model
+**
+**		data 			Object			Config [{ username : 'username', text : 'tweeter text' }]
+**      returns			Object 			A 'Tweet' object @ Promise
+**
+*/ 
+UserSchema.statics.createUserTweet = function( data ) {
+	var Self = this;
+
+	return new Promise(function(resolve, reject) {
+
+		// Looks for the user (it should exist)
+		Self.findByUsername( data.username, true, function(err, user) {
+
+			if (err) {
+	        	reject( new Error({ code : 500, description : err.message }) );
+	        }
+
+	        // If the user does not exist
+			if (!user) {
+	        	reject( new Error({ code : 404, description : "The specified profile '"+ data.username +"' was not found." }) );
+	        }
+
+	        // Create the new tweet
+	        user.createTweet( data.text )
+	        	.then(function(tweet) {
+
+	        		// Return the Tweet object
+			        resolve(tweet);
+	        	})
+	        	.catch(function(err) {
+					if (err) {
+			        	reject( new Error({ code : 500, description : err.message }) );
+			        }
+	        	});
+		});
+	});
+};
+
+
+/* 	Gets the Timeline for a given username
+**
+**		username		Object			Username of the timeline request
+**      returns			Object 			An object representing the user's timeline
+**
+*/ 
+UserSchema.statics.getTimeline = function( username ) {
+	var Self = this;
+
+	return new Promise(function(resolve, reject) {
+
+		Self.findByUsername(username, true, function(err, user) {
+
+			if (err) {
+	        	reject( new Error({ code : 500, description : err.message }) );
+	        }
+
+	        // If the user does not exist
+			if (!user) {
+	        	reject( new Error({ code : 404, description : "The specified profile '"+ data.username +"' was not found." }) );
+	        }
+
+	        resolve(user.tweets);
+	    });
+	});
+};
+
+
+
+
+
+/*******************************************
+
+		MODEL INSTANCE METHODS
+
+********************************************/
+
+/* 	Creates a new Tweet message
+**
+**		text 			String			Text message to post
+**      returns			Object 			A 'Tweet' object @ Promise
+**
+*/ 
+UserSchema.methods.createTweet = function( text ) {	
+	var Self = this;
+
+	return new Promise(function(resolve, reject) {
+
+		// Creates the new Tweet message
+		var TweetModel = Self.model('Tweet');
+		var tweet = new TweetModel();
+		tweet.text = text;
+		tweet._creator = Self._id;
+
+		TweetModel.populate(tweet, {path:"_creator",select: 'username displayName'}, function(err, tweet) { console.log(tweet); });
+
+		// Saves the new Tweet
+		tweet.save(function(err, tweet) {
+
+			if (err) {
+				reject( new Error({ code : 500, description : err.message }) );
+			}
+
+			// Pushes the tweet into the user's tweets array
+			Self.tweets.push(tweet);
+
+			// Saves the user's document and returns the tweet object
+			Self.save(function(err, user) {
+
+				if (err) {
+					reject( new Error({ code : 500, description : err.message }) );
+				}
+
+				// Return the Tweet object
+
+				resolve(tweet);
+			});
+		});
+
+	});
+};
+
 module.exports = mongoose.model('User', UserSchema);

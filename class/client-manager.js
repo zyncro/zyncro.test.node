@@ -45,6 +45,9 @@ ClientManager.prototype.addClient = function( client ) {
 					return new Error("Requested username '"+ client.username +"' unexistant.");
 		        }
 
+
+
+
 		        /** CLIENT SETUP **/
 
 				// Set client as authentificated
@@ -58,7 +61,7 @@ ClientManager.prototype.addClient = function( client ) {
 
 				// Following / Followers
 				client.followings = userProfile.followings;
-				client.followers = userProfile.followers;	
+				client.followers = userProfile.followers;
 
 				// Create the client's room
 				client.socket.join( client.username );
@@ -68,8 +71,12 @@ ClientManager.prototype.addClient = function( client ) {
 
 				// Add the client to the clients array (will overwrite when existant)
 				Self.clientList[client.username] = client;
-				
-				console.log();
+
+				// Make sure we'll remove the client's from the server-side client list when it disconnects
+				client.socket.on('disconnect', function() {
+					console.log("> Client '"+ client.username +"' removed.");
+					delete Self.clientList[client.username];
+				});
 		});
 
 	}
@@ -93,20 +100,20 @@ ClientManager.prototype.joinFollowRooms = function( client ) {
 	}
 
 	// Look for online followings and join their rooms to receive updates as push notifications
-	for (var i in client.followings) {
+	for (var i=0; i<client.followings.length; i++) {
 
 		if ( typeof Self.clientList[client.followings[i]] !== 'undefined' ) {
 			client.socket.join( client.followings[i] );
-			//console.log("Following "+ client.followings[i] +" está online!");
+			console.log("- User '"+ client.username +"' joined "+ client.followings[i] +"'s room.");
 		}
 	}
 
 	// Look for online followers and join them to the client's room
-	for (var i in client.followers) {
+	for (var i=0; i<client.followers.length; i++) {
 
 		if ( typeof Self.clientList[client.followers[i]] !== 'undefined' ) {
 			Self.clientList[client.followers[i]].socket.join( client.username );
-			//console.log("Follower "+ client.followings[i] +" está online!");
+			console.log("-- User '"+ client.followers[i] +"' joined "+ client.username +"'s room.");
 		}
 	}
 }
@@ -323,79 +330,55 @@ ClientManager.prototype.bindEvents = function( client ) {
 	// @ getTimeline 		- Gets the timeline of a username (default is client's)
 	//
 	Self.addAuthEventListener(client, 'getTimeline', function( requestData ) {
+		// If no username is given use client's (default)
+		var username = requestData.username != "" ? requestData.username.toLowerCase():client.username;
 
-		/*
-			Search for all related tweets, this may be:
-				- User's own tweets
-				- Tweets from users that he is following
-				- Order the combined array by date
-		*/
-		Self.UserModel.findOne({username : client.username })
-			.exec(function(err, user) {
-			
-				// Fetch all users using the "followings" array
-				Self.UserModel.find({username : {"$in" : user.followings }})
-					.select({ _id : 1 })
-					.exec(function(err, users) {
+		// Get the requested user's timeline
+		Self.UserModel.getTimeline( username )
+			.then(function(tweets) {
 
-						// Add client's ID to the users array
-						users.push({ _id : user._id });
+				console.log("> Successfully got user '"+ username +"'s timeline.");
 
-						// Fetch all Tweets using 'users' array, knowing that '_creator' = 'User._id'
-						Self.TweetModel.find({_creator : {"$in" : users }})
-							.sort('-datetime')
-							.exec(function(err, tweets) {
+				// Respond emitting an event
+				client.socket.emit('onGetTimeline', tweets);
 
-								// Respond emitting an event
-								client.socket.emit('onGetTimeline', tweets);
-						});
-				});
+			}).catch(function(err) {
 
-		});
+				console.log("An error ocurred: ", err);
+
+				client.socket.emit('onGetTimelineError', { code : 500, description : err.message });
+			});
 	});	
 
 	// @ createTweet 			- Posts a new Tweet 
 	//
 	Self.addAuthEventListener(client, 'createTweet', function( requestData ) {
 
-		// Validate user input
-		if ( typeof requestData.message === 'undefined' || requestData.message === '' ) {
-			client.socket.emit('onCreateTweetError', { code : 400, description : 'Please enter a message post.'});
-		}
+		// If the user is unexistent
+		if ( typeof requestData.text !== 'string' || requestData.text.length < 1 ) {
+			client.socket.emit('onCreateTweetError', { code : 400, description : "You must enter a valid text to tweet." });
+			return false;
+        }
 
-		// Look for the client's user as the Parent Object which will hold 'Tweets'
-		Self.UserModel.findById(client._id, function(err, clientUser) {
-			
-			// Create the child object 'Tweet'
-			var newTweet = new Self.TweetModel();
-			newTweet._creator = clientUser._id;
-			newTweet.datetime = Date.now();		
-			newTweet.text = requestData.message;
-			newTweet.save();
+		var tweetData = { username : client.username, text : requestData.text };
 
+		Self.UserModel.createUserTweet( tweetData )
+			.then(function(tweet) {
 
-			clientUser.tweets.push(newTweet);
+				console.log("> Successfully posted new Tweet by user '"+ tweetData.username +".");
 
+				// Emit to OWNER
+				client.socket.emit('onCreateTweet', tweet);
 
-			clientUser.save(function(err, user) {
+				// Emit to FOLLOWERS
+				client.socket.to( client.username ).emit('onTimelineUpdated', tweet);
 
-				if (err) {
-					client.socket.emit('onCreateTweetError', { code : 500, description : err });
-					return new Error(err);
-				}
+			}).catch(function(err) {
 
+				console.log("An error ocurred: ", err);
 
-
-
-
-				// Respond emitting an event
-				client.socket.emit('onCreateTweet', newTweet );
-
-				// Emitimos un update para todos nuestros followers
-				client.socket.to( client.username ).emit('onTimelineUpdated', newTweet);	
+				client.socket.emit('onCreateTweetError', { code : 500, description : err.message });
 			});
-		});
-
 	});	
 };
 
