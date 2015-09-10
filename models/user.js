@@ -293,7 +293,7 @@ UserSchema.methods.createTweet = function( text ) {
 		tweet.text = text;
 		tweet._creator = Self._id;
 
-		TweetModel.populate(tweet, {path:"_creator",select: 'username displayName'}, function(err, tweet) { console.log(tweet); });
+		TweetModel.populate(tweet, {path:"_creator",select: 'username displayName'}, function(err, tweet) { });
 
 		// Saves the new Tweet
 		tweet.save(function(err, tweet) {
