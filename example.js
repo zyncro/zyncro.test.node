@@ -24,20 +24,151 @@ var getNewSocketWithUsername = function (username) {
 };
 
 
-//Example of existing user (user7) asking for the user list & the profile of user1
-var client1 = new Client(getNewSocketWithUsername('user7'), 'user7');
-client1.setUpdatesCallback(function (updates, err) {
-  if (err) {
-    console.error(err);
-  } else {
-    console.log('UPDATES', updates);
-  }
+describe("Twitter like server API tests: ", function() {
+
+
+/*
+  it("Should create a new account on server @ singUp event", function(done) {
+
+    var anonUser = new Client(getNewSocketWithUsername(''), '');
+
+    anonUser.socket.on('connect', function() {
+
+      anonUser.signUp('User8','AlphaCentauri').then(function (userProfile) {
+
+        console.log('NEW PROFILE', userProfile);
+
+        done();
+
+      });
+
+    });
+
+  });
+
+*/
+  it("Should retrieve the user's timeline @ getTimeLine event", function(done) {
+
+    var client1 = new Client(getNewSocketWithUsername('User1'), 'User1');
+
+    client1.socket.on('connect', function() {
+
+      client1.getTimeLine('User1').then(function (userTimeline) {
+
+        //console.log('USER TIMELINE', userTimeline);
+
+        done();
+
+      }).catch(function (err) {
+
+        console.log(err);
+
+      });
+
+    });
+
+  });  
+
+  it("Should start following a User @ followUser event", function(done) {
+
+    var client2 = new Client(getNewSocketWithUsername('User2'), 'User2');
+
+    client2.socket.on('connect', function() {
+
+      client2.followUser('User1').then(function (followingUser) {
+
+        //console.log('NOW FOLLOWING: ', followingUser);
+
+        done();
+      });
+
+    });
+
+  }); 
+
+  it("Should stop following a User @ unfollowUser event", function(done) {
+
+    var client2 = new Client(getNewSocketWithUsername('User2'), 'User2');
+
+    client2.socket.on('connect', function() {
+
+      client2.unfollowUser('User1').then(function (unfollowingUser) {
+
+        //console.log('NOW UNFOLLOWING: ', unfollowingUser);
+
+        done();
+      });
+
+    });
+
+  }); 
+
+  it("Should get the User List from server @ getUserList event", function(done) {
+
+    var client3 = new Client(getNewSocketWithUsername('user3'), 'user3');
+
+    client3.socket.on('connect', function() {
+
+      client3.getUserList().then(function (userlist) {
+
+        //console.log('USERLIST', userlist);
+
+        done();
+
+      });
+
+    });
+
+  });
+
+  it("Should post a new Tweet @ createTweet event", function(done) {
+
+    var client4 = new Client(getNewSocketWithUsername('user4'), 'user4');
+
+    client4.socket.on('connect', function() {
+
+      client4.postNewTweet("This is a new Tweet message.").then(function (newTweet) {
+
+        //console.log('USERLIST', newTweet);
+
+        done();
+
+      }).catch(done);
+
+    });
+
+  });
+
+  it("Should receive an error message if no username passed @ signIn event", function(done) {
+
+
+    var anonUser = new Client(getNewSocketWithUsername(''), '');
+
+    anonUser.socket.on('connect', function() {
+
+      anonUser.getUserList().then(function () {
+        console.log('It won\'t enter here...');
+
+      }).catch(done);
+
+
+    })
+
+  });
+
+
 });
 
-client1.getUserList().then(function (userlist) {
-  console.log('USERLIST', userlist);
-});
 
+
+/*
+    client7.setUpdatesCallback(function (updates, err) {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log('UPDATES', updates);
+      }
+    });
 
 client1.getUserProfile('user1').then(function (profile) {
   console.log('PROFILE', profile);
@@ -59,3 +190,4 @@ client3.getUserList().then(function () {
 }).catch(function (err) {
   console.error(err);
 });
+*/

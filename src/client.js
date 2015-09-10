@@ -122,15 +122,15 @@ module.exports = function () {
     var self = this;
 
     return new Promise(function (resolve, reject) {
-      self.socket.emit('follow', {
+      self.socket.emit('followUser', {
         username: username
       });
 
-      self.socket.on('onFollow', function (updatedFollowList) {
+      self.socket.on('onFollowUser', function (updatedFollowList) {
         resolve(updatedFollowList);
       });
 
-      self.socket.on('onFollowError', function (err) {
+      self.socket.on('onFollowUserError', function (err) {
         reject(err);
       });
     });
@@ -141,15 +141,15 @@ module.exports = function () {
     var self = this;
 
     return new Promise(function (resolve, reject) {
-      self.socket.emit('unfollow', {
+      self.socket.emit('unfollowUser', {
         username: username
       });
 
-      self.socket.on('onUnfollow', function (updatedFollowList) {
+      self.socket.on('onUnfollowUser', function (updatedFollowList) {
         resolve(updatedFollowList);
       });
 
-      self.socket.on('onUnfollowError', function (err) {
+      self.socket.on('onUnfollowUserError', function (err) {
         reject(err);
       });
     });
@@ -181,7 +181,7 @@ module.exports = function () {
 
     return new Promise(function (resolve, reject) {
       self.socket.emit('createTweet', {
-        text: tweet
+        message : tweet
       });
 
       self.socket.on('onCreateTweet', function (tweet) {
