@@ -26,57 +26,37 @@ ClientManager.prototype.addClient = function( client ) {
 	// Authentificate and setup the client object
 	if ( client.username ) {
 
-		// May do some validation her, for now just move the string to lowercase
-		var username = client.username.toLowerCase();
+		// Force usernames to lower case
+		var username = client.username = client.username.toLowerCase();
 
 		// Look for the user in the DB
-	    Self.UserModel.findOne({ username : username })
-	    	.exec(function(err, userProfile) {
-	        
-		    	// If username was not found...
-		        if (err) {
-					client.socket.disconnect();
-					console.log(err.message);
-					return new Error(err);
-		        }
+	    Self.UserModel.findByUsername( username, true, function(err, userProfile) {
 
-		        if (!userProfile) {
-					console.log("> Requested username '"+ client.username +"' unexistant.");
-					return new Error("Requested username '"+ client.username +"' unexistant.");
-		        }
+	    	// If username was not found
+	        if (err) {
+				console.log("An error ocurred: ", err);
+				client.socket.emit('error', new Error({ code: 500, description: err.message }));
+				client.socket.disconnect();				
+	        }
+
+	        // If the profile does not exist
+	        if (!userProfile) {
+	        	client.socket.disconnect();
+				console.log("> Requested username '"+ client.username +"' unexistant.");					
+				client.socket.emit('error', new Error({ code: 404, description: "Username '"+ username +"' unexistent."}));
+	        }
 
 
+	        /** CLIENT SETUP **/
 
+	        // Populate the client with settings
+	        client.setup( userProfile );
 
-		        /** CLIENT SETUP **/
+			// Join client to his online followings / followers
+			Self.joinFollowRooms( client );
 
-				// Set client as authentificated
-				client.auth = true;
-
-				// Save the user ID in memory
-				client._id = userProfile._id;
-
-				// Set the client's username
-				client.username = userProfile.username;
-
-				// Following / Followers
-				client.followings = userProfile.followings;
-				client.followers = userProfile.followers;
-
-				// Create the client's room
-				client.socket.join( client.username );
-
-				// Join to our online followings / followers
-				Self.joinFollowRooms( client );
-
-				// Add the client to the clients array (will overwrite when existant)
-				Self.clientList[client.username] = client;
-
-				// Make sure we'll remove the client's from the server-side client list when it disconnects
-				client.socket.on('disconnect', function() {
-					console.log("> Client '"+ client.username +"' removed.");
-					delete Self.clientList[client.username];
-				});
+			// Add the client to the clients array (will overwrite when existant)
+			Self.clientList[client.username] = client;
 		});
 
 	}
@@ -137,9 +117,10 @@ ClientManager.prototype.addAuthEventListener = function( client, event, fnCallba
 
 		// Disconnect unathorized clients
 		console.log("---> Authentification failed!");
+
+		var replyToEvent = "on" + event.charAt(0).toUpperCase() + event.slice(1) + "Error";
+		client.socket.emit(replyToEvent, { code: 403, description: "You must specify a username in your query." });
 		client.socket.disconnect();
-		client.socket.emit('error', new Error("{ code: 403, description: 'You must specify a username in your query' }"));
-		return new Error("{ code: 403, description: 'You must specify a username in your query' }");  
     });
 }
 
@@ -157,8 +138,9 @@ ClientManager.prototype.bindEvents = function( client ) {
 	client.socket.on('disconnect', function() {
 		console.log("-> Client disconnected.");
 
-		// Si el cliente esta en mi lista the Auth Clients, lo remuevo
+		// Make sure authenticated clients are removed on disconnection
 		if ( client.auth ) {
+			console.log("> Client '"+ client.username +"' removed.");
 			delete Self.clientList[client.username];
 		}
 	});	
@@ -232,7 +214,7 @@ ClientManager.prototype.bindEvents = function( client ) {
 
 				console.log("An error ocurred: ", err);
 
-				client.socket.emit('onGetUserProfileError', { code : 500, description : err.message });
+				client.socket.emit('onGetUserProfileError', { code : 404, description : err.message });
 			});
 	});
 

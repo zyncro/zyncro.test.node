@@ -29,4 +29,24 @@ SocketClient.prototype.updateFollowersList = function( followers ) {
 	this.followers = followers;
 };
 
+// Update the 'Followers' list
+SocketClient.prototype.setup = function( config ) {
+
+	// Set client as authentificated
+	this.auth = true;
+
+	// Save the user ID in memory
+	this._id = config._id;	
+
+	// Set the client's username
+	this.username = config.username;
+
+	// Following / Followers
+	this.followings = config.followings;
+	this.followers = config.followers;
+
+	// Create the client's room
+	this.socket.join( config.username );
+};
+
 module.exports = SocketClient;

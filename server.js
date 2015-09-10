@@ -68,5 +68,5 @@ io.sockets.on('connection', function( socket ) {
 
 	// Manage the connection
 	Manager.addClient( client );
-
+	
 });

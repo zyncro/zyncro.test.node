@@ -33,7 +33,6 @@ UserSchema.statics.findByUsername = function(username, populate, callback) {
 	return populate ? this.findOne({ username : username }, callback).populate('tweets') : this.findOne({ username : username }, callback);
 };	
 
-
 /* 	Creates a new User
 **
 **		data			Object 			Config [{ username : 'username', displayName : 'displayName' }]
@@ -49,12 +48,12 @@ UserSchema.statics.createSignUp = function( data ) {
 		Self.findByUsername( data.username, false, function(err, user) {
 
 			if (err) {
-				reject( new Error({ code : 500, description : err.message }) );
+				reject( new Error(err.message ) );
 			}
 
 			// If the username is in use we should reject the request
 			if (user) {
-	        	reject( new Error({ code : 409, description : "The username '"+ data.username +"' is already in use." }) );
+	        	reject( new Error("The username '"+ data.username +"' is already in use.") );
 	        }
 
 	        // Prepare the new user data
@@ -64,8 +63,9 @@ UserSchema.statics.createSignUp = function( data ) {
 
 	        // Save the new user and resolve if ok
 	        user.save(function(err, user) {
+
 	        	if (err) {
-	        		reject( new Error({ code : 500, description : err.message }) );
+	        		reject( new Error(err.message) );
 	        	}
 
 	        	resolve(user);
@@ -88,7 +88,7 @@ UserSchema.statics.findAllUsers = function() {
 		Self.find({}, function(err, users) {
 
 			if (err) {
-	        	reject( new Error({ code : 500, description : err.message }) );
+	        	reject( new Error(err.message) );
 	        }
 
 	        // Will return all users found
@@ -112,12 +112,12 @@ UserSchema.statics.getProfile = function( username ) {
 		Self.findByUsername( username, true, function(err, user) {
 
 			if (err) {
-	        	reject( new Error({ code : 500, description : err.message }) );
+	        	reject( new Error(err.message) );
 	        }
 
 	        // If the user does not exist
 			if (!user) {
-	        	reject( new Error({ code : 404, description : "The specified profile '"+ username +"' was not found." }) );
+	        	reject( new Error("The specified profile '"+ username +"' was not found.") );
 
 	        }
 
@@ -140,6 +140,10 @@ UserSchema.statics.followUser = function( data ) {
 
 	return new Promise(function(resolve, reject) {
 
+		if ( typeof data === 'undefined' || data.followed.length < 1 || data.follower.length < 1  ) {
+			reject( new Error("You must specify who to follow.") );
+		}
+
 		// Si el flag está levantado, entonces hacemos UNfollow
 		var flag = data.reverse === true ? true:false;
 
@@ -147,24 +151,27 @@ UserSchema.statics.followUser = function( data ) {
 		Self.findByUsername( data.followed, false, function(err, userToFollow) {
 
 			if (err) {
-				reject( new Error({ code : 500, description : err.message }) );
+				reject( new Error(err.message) );
 			}
 
 			// If the user is unexistent
-			if (!userToFollow) {
-	        	reject( new Error({ code : 404 , description : "The username '"+ data.followed +"' does not exist." }) );
+
+			if (userToFollow === null) {
+	        	reject( new Error("The username '"+ data.followed +"' does not exist.") );
+	        	return false;
 	        }
+
 
 			// The uto be followed user exists, get the follower's user
 			Self.findByUsername( data.follower, false, function(err, userThatFollows) {
 
 				if (err) {
-					reject(new Error({ code : 500, description : err.message }));
+					reject( new Error(err.message) );
 				}
 
 				// If the user is unexistent
 				if (!userThatFollows) {
-	        		reject( new Error({ code : 404 , description : "The username '"+ data.follower +"' does not exist." }) );
+	        		reject( new Error("The username '"+ data.follower +"' does not exist.") );
 		        }
 
 		        // Update the fields that relates both uers as follower/followed
@@ -207,12 +214,12 @@ UserSchema.statics.createUserTweet = function( data ) {
 		Self.findByUsername( data.username, true, function(err, user) {
 
 			if (err) {
-	        	reject( new Error({ code : 500, description : err.message }) );
+	        	reject( new Error(err.message) );
 	        }
 
 	        // If the user does not exist
 			if (!user) {
-	        	reject( new Error({ code : 404, description : "The specified profile '"+ data.username +"' was not found." }) );
+	        	reject( new Error("The specified profile '"+ data.username +"' was not found.") );
 	        }
 
 	        // Create the new tweet
@@ -224,7 +231,7 @@ UserSchema.statics.createUserTweet = function( data ) {
 	        	})
 	        	.catch(function(err) {
 					if (err) {
-			        	reject( new Error({ code : 500, description : err.message }) );
+			        	reject( new Error(err.message) );
 			        }
 	        	});
 		});
@@ -246,12 +253,12 @@ UserSchema.statics.getTimeline = function( username ) {
 		Self.findByUsername(username, true, function(err, user) {
 
 			if (err) {
-	        	reject( new Error({ code : 500, description : err.message }) );
+	        	reject( new Error(err.message) );
 	        }
 
 	        // If the user does not exist
 			if (!user) {
-	        	reject( new Error({ code : 404, description : "The specified profile '"+ data.username +"' was not found." }) );
+	        	reject( new Error("The specified profile '"+ data.username +"' was not found.") );
 	        }
 
 	        resolve(user.tweets);
@@ -261,13 +268,13 @@ UserSchema.statics.getTimeline = function( username ) {
 
 
 
-
-
 /*******************************************
 
 		MODEL INSTANCE METHODS
 
 ********************************************/
+
+
 
 /* 	Creates a new Tweet message
 **
@@ -292,7 +299,7 @@ UserSchema.methods.createTweet = function( text ) {
 		tweet.save(function(err, tweet) {
 
 			if (err) {
-				reject( new Error({ code : 500, description : err.message }) );
+				reject( new Error(err.message ) );
 			}
 
 			// Pushes the tweet into the user's tweets array
@@ -302,11 +309,10 @@ UserSchema.methods.createTweet = function( text ) {
 			Self.save(function(err, user) {
 
 				if (err) {
-					reject( new Error({ code : 500, description : err.message }) );
+					reject( new Error(err.message) );
 				}
 
 				// Return the Tweet object
-
 				resolve(tweet);
 			});
 		});
@@ -314,4 +320,29 @@ UserSchema.methods.createTweet = function( text ) {
 	});
 };
 
-module.exports = mongoose.model('User', UserSchema);
+
+
+/*******************************************
+
+			MODEL VALIDATION
+
+********************************************/
+
+
+
+var User = mongoose.model('User', UserSchema)
+
+// USERNAME 
+User.schema.path('username').validate(function (value) {
+	return /^[a-zA-Z0-9\ñ\Ñ\ñ\Ñ\á\é\í\ó\ú\Á\É\Í\Ó\Ú]{1,32}$/i.test(value);
+}, 'Invalid username: alphanumerical characters only.');
+
+
+// DISPLAY NAME
+User.schema.path('displayName').validate(function (value) {
+	return /^[a-zA-Z0-9\ñ\Ñ\á\é\í\ó\ú\Á\É\Í\Ó\Ú\s]{1,64}$/i.test(value);
+}, 'Invalid display name: no special characters please.');
+
+
+// Export
+module.exports = User;

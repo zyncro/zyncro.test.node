@@ -26,24 +26,27 @@ var getNewSocketWithUsername = function (username) {
 
 describe("Twitter like server API tests: ", function() {
 
+
+/*
   it("Should create a new account on server @ singUp event", function(done) {
 
     var anonUser = new Client(getNewSocketWithUsername(''), '');
 
     anonUser.socket.on('connect', function() {
 
-      anonUser.signUp({ username : 'User8', displayName : 'AlphaCentauri' }).then(function (userProfile) {
+      anonUser.signUp('User8','AlphaCentauri').then(function (userProfile) {
 
         console.log('NEW PROFILE', userProfile);
 
         done();
+
       });
 
     });
 
   });
 
-
+*/
   it("Should retrieve the user's timeline @ getTimeLine event", function(done) {
 
     var client1 = new Client(getNewSocketWithUsername('User1'), 'User1');
@@ -55,6 +58,11 @@ describe("Twitter like server API tests: ", function() {
         //console.log('USER TIMELINE', userTimeline);
 
         done();
+
+      }).catch(function (err) {
+
+        console.log(err);
+
       });
 
     });
@@ -69,7 +77,7 @@ describe("Twitter like server API tests: ", function() {
 
       client2.followUser('User1').then(function (followingUser) {
 
-        console.log('NOW FOLLOWING: ', followingUser);
+        //console.log('NOW FOLLOWING: ', followingUser);
 
         done();
       });
@@ -121,7 +129,7 @@ describe("Twitter like server API tests: ", function() {
 
       client4.postNewTweet("This is a new Tweet message.").then(function (newTweet) {
 
-        console.log('USERLIST', newTweet);
+        //console.log('USERLIST', newTweet);
 
         done();
 
@@ -130,6 +138,25 @@ describe("Twitter like server API tests: ", function() {
     });
 
   });
+
+  it("Should receive an error message if no username passed @ signIn event", function(done) {
+
+
+    var anonUser = new Client(getNewSocketWithUsername(''), '');
+
+    anonUser.socket.on('connect', function() {
+
+      anonUser.getUserList().then(function () {
+        console.log('It won\'t enter here...');
+
+      }).catch(done);
+
+
+    })
+
+  });
+
+
 });
 
 
