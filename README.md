@@ -71,4 +71,41 @@ opcional:
 ####Gracias por dedicar tu tiempo a hacer este ejercicio. Buena suerte
 
 ##Notas del desarrollador
-Pon aquí tus notas, explicaciones, comentarios, etc...
+
+	Entrego todo lo solicitado tras un gran esfuerzo dado que al mismo tiempo he tenido que cumplir con mis obligaciones laborales regulares, pero al mismo tiempo, feliz de haber podido realizar esta experiencia y de haber aprendido mucho. Confío en mi trabajo y también en que mi producto, dado mi gran interés y mi dedicación, mejorará muchísimo en poco tiempo con el entrenamiento cotidiano. Espero alcanzar las espectativas!
+
+
+Notas de desarrollo:
+====================
+
+1) Estructura - He decidido utilizar las siguientes clases:
+
+	Client			-	Representa una conexión de cliente, se instancia unicamente cuando el cliente está 							'autorizado' (es decir, cuando la conexión recibe 'username' via query string).
+
+	ClientManager	-	Es un manejador de conexiones, gestionará los objetos 'Client'.
+
+	'User'/'Tweet'	-	Modelos de Mongoose (por medio de sus metodos se encapsula el acceso a la DB).
+
+2) Push notifications - Realizo las notificaciones PUSH por medio de rooms.
+
+3) Declaración de clases - En la declaración de 'Client' y 'ClientManager' utilize un nombre en las funciones, esto lo he hecho así ya que de este modo es mas facil hacer un seguimiento de errores en el stack.
+
+4) Mongoose y DAO - Ya que utilizo MongoDB y Mongoose utilizo las funcionalidades provistas por éste último para
+realizar el acceso a los datos por medio de metodos agregados en el modelo como "statics" y como "methods", en este último caso, para ejecutar desde las instancias unicamente.
+
+5) Errores - Visto que se solicitaba entregar errores con codigo / descripción he seguido este patron para todos los errores que arroja mi servidor utilizando los codigos HTTP que creí mas acertados. Al mismo tiempo, con el objeto de hacer mejor debug de la API, en consola se registran todos los errores y las acciones disparadas a través de eventos los recibidos.
+
+6) Bluebird Prmises - Ya que en la clase dada como ejemplo se utiizaban este tipo de promesas intenté utilizar, siempre que me fue posible, este metodo. Se aprecia mas bien en el acceso desde los eventos a los metodos del modelo de Mongoose, que siempre devolveran una Promise.
+
+7) Validaciones (datos) - Solo he implementado validacion para 'username' y 'displayName' por medio del validador de Mongoose, por cuestion de tiempos y para que al menos se vea que sé que existe esa posibilidad. Generalmente realizo controles via regex en todos los campos obligatorios y contemplo la posibilidad de inyección de codigo.
+
+8) Otras validaciones - Intente dejar lo mas "filtrada" posible la interacción con el usuario, por ejemplo, siempre que se solicitan acciones sobre otros usuarios (como follow o pedir el profile) se realiza ante nada la busqueda del usuario solicitado en la DB, y de no existir, se arroja un error con codigo 404.
+
+9) Control - También puse especial cuidado en cuestiones como no dejar nunca sockets conectados cuando un cliente se desconecta (sea intencionalmente o por un error producido), que no se pueda accionar sobre usuarios inexistentes, que el manejo de Rooms sea siempre en tiempo real, es decir, que se refresquen los follows esten o no los usuarios conectados, que no se dupliquen los follows, etc.
+
+9) MongoDB - En mi equipo trabaje son autentificación por eso no utilicé un archivo de configuración y realizo la conexión directamente hacia localhost
+
+10) Tests MochaJS - Para no demorarme (y tras haber consultado prioridades) estoy entregando el trabajo son la realización de los tests via MochaJS. Si fuera necesario les ruego me comuniquen y hare lo posible por entregarlos también.
+
+
+----- Atentamente, Eduardo Garcia Rajo.
